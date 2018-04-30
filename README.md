@@ -4,8 +4,8 @@ LS-HPACK: LiteSpeed HPACK Library
 Description
 -----------
 
-LS-HPACK implements provides functionality to encode and decode HTTP
-headers using HPACK compression mechanism specified in RFC 7541.
+LS-HPACK provides functionality to encode and decode HTTP headers using
+HPACK compression mechanism specified in RFC 7541.
 
 Documentation
 -------------
