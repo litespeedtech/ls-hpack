@@ -1,0 +1,50 @@
+# The following variable can be defined on the command line:
+#
+#   SHARED
+#   RELEASE
+#   NDEBUG
+#   XXH_HEADER_NAME
+#   XXH_INCLUDE_DIR
+
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+PROJECT(ls-hpack)
+
+IF (SHARED EQUAL 1)
+    ADD_LIBRARY(ls-hpack SHARED src/lshpack.c)
+ELSE()
+    ADD_LIBRARY(ls-hpack STATIC src/lshpack.c)
+ENDIF()
+INCLUDE_DIRECTORIES(include)
+
+IF (NOT DEFINED XXH_HEADER_NAME)
+    SET(XXH_HEADER_NAME "xxhash.h")
+ENDIF()
+
+IF (DEFINED XXH_INCLUDE_DIR)
+    INCLUDE_DIRECTORIES("${XXH_INCLUDE_DIR}")
+ELSE()
+    INCLUDE_DIRECTORIES(deps/xxhash)
+ENDIF()
+
+SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Wall -Wextra -Wno-unused-parameter")
+SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -fno-omit-frame-pointer")
+IF (RELEASE EQUAL 1)
+    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O3 -g0 -DLS_HPACK_RELEASE")
+ELSE()
+    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O0 -g3")
+    # -Werror is used to force us to fix warnings early.
+    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Werror")
+    ENABLE_TESTING()
+    INCLUDE_DIRECTORIES("test")
+    ADD_SUBDIRECTORY("test")
+ENDIF()
+
+IF (NDEBUG EQUAL 1)
+    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -DNDEBUG")
+ENDIF()
+
+SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -DXXH_HEADER_NAME=\\\"${XXH_HEADER_NAME}\\\"")
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MY_CMAKE_FLAGS}")
+
+MESSAGE(STATUS "Compiler flags: ${CMAKE_C_FLAGS}")
