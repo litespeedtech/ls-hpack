@@ -23,5 +23,6 @@ Platforms
 
 The library has been tested on the following platforms:
 - Linux
+- FreeBSD
 
 Copyright (c) 2018 LiteSpeed Technologies Inc
