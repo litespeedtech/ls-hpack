@@ -5,7 +5,7 @@
 #include <sys/queue.h>
 
 #include "lshpack.h"
-#ifndef LS_HPACK_RELEASE
+#if LS_HPACK_EMIT_TEST_CODE
 #include "lshpack-test.h"
 #endif
 #include XXH_HEADER_NAME
@@ -5384,7 +5384,7 @@ lshpack_enc_cleanup (struct lshpack_enc *enc)
 
 
 //not find return 0, otherwise return the index
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        unsigned
@@ -5811,7 +5811,7 @@ henc_enc_int (unsigned char *dst, unsigned char *const end, uint32_t value,
 }
 
 
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static 
 #endif
        int
@@ -5854,7 +5854,7 @@ henc_huffman_enc (const unsigned char *src, const unsigned char *const src_end,
 }
 
 
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
@@ -6008,7 +6008,7 @@ henc_grow_tables (struct lshpack_enc *enc)
     return 0;
 }
 
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
@@ -6133,7 +6133,7 @@ lshpack_enc_set_max_capacity (struct lshpack_enc *enc, unsigned max_capacity)
     henc_remove_overflow_entries(enc);
 }
 
-#ifndef LS_HPACK_RELEASE
+#if LS_HPACK_EMIT_TEST_CODE
 void
 lshpack_enc_iter_reset (struct lshpack_enc *enc)
 {
@@ -6213,7 +6213,7 @@ lshpack_dec_cleanup (struct lshpack_dec *dec)
 }
 
 
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
@@ -6336,7 +6336,7 @@ hdec_huff_decode (const unsigned char *src, int src_len,
 
 
 //reutrn the length in the dst, also update the src
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
@@ -6398,7 +6398,7 @@ hdec_get_table_entry (struct lshpack_dec *dec, uint32_t index)
 }
 
 
-#ifdef LS_HPACK_RELEASE
+#if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int

@@ -113,7 +113,7 @@ struct lshpack_enc
                         hpe_all_entries;
     struct lshpack_double_enc_head
                        *hpe_buckets;
-#ifndef LS_HPACK_RELEASE                       
+#if LS_HPACK_EMIT_TEST_CODE
     const struct lshpack_enc_table_entry
                        *hpe_iter;
 #endif                       
