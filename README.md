@@ -10,7 +10,7 @@ HPACK compression mechanism specified in RFC 7541.
 Documentation
 -------------
 
-The API is documented in include/ls/hpack.h.  To see usage examples,
+The API is documented in include/lshpack.h.  To see usage examples,
 see the unit tests.
 
 Requirements
