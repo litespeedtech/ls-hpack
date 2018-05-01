@@ -87,13 +87,10 @@ lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
 
 #include <sys/queue.h>
 
-struct enc_table_entry;
+struct lshpack_enc_table_entry;
 
-STAILQ_HEAD(enc_head, enc_table_entry);
-struct double_enc_head;
-#ifndef LS_HPACK_RELEASE                       
-struct enc_table_entry;
-#endif
+STAILQ_HEAD(lshpack_enc_head, lshpack_enc_table_entry);
+struct lshpack_double_enc_head;
 
 struct lshpack_enc
 {
@@ -112,11 +109,12 @@ struct lshpack_enc
      */
     unsigned            hpe_nelem;
     unsigned            hpe_nbits;
-    struct enc_head     hpe_all_entries;
-    struct double_enc_head
+    struct lshpack_enc_head
+                        hpe_all_entries;
+    struct lshpack_double_enc_head
                        *hpe_buckets;
 #ifndef LS_HPACK_RELEASE                       
-    const struct enc_table_entry
+    const struct lshpack_enc_table_entry
                        *hpe_iter;
 #endif                       
 };

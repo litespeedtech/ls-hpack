@@ -5308,16 +5308,17 @@ lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val)
     return 0;
 }
 
-struct double_enc_head
+struct lshpack_double_enc_head
 {
-    struct enc_head by_name;
-    struct enc_head by_nameval;
+    struct lshpack_enc_head by_name;
+    struct lshpack_enc_head by_nameval;
 };
 
-struct enc_table_entry
+struct lshpack_enc_table_entry
 {
     /* An entry always lives on all three lists */
-    STAILQ_ENTRY(enc_table_entry)   ete_next_nameval,
+    STAILQ_ENTRY(lshpack_enc_table_entry)
+                                    ete_next_nameval,
                                     ete_next_name,
                                     ete_next_all;
     unsigned                        ete_id;
@@ -5338,7 +5339,7 @@ struct enc_table_entry
 int
 lshpack_enc_init (struct lshpack_enc *enc)
 {
-    struct double_enc_head *buckets;
+    struct lshpack_double_enc_head *buckets;
     unsigned nbits = 2;
     unsigned i;
 
@@ -5372,7 +5373,7 @@ lshpack_enc_init (struct lshpack_enc *enc)
 void
 lshpack_enc_cleanup (struct lshpack_enc *enc)
 {
-    struct enc_table_entry *entry, *next;
+    struct lshpack_enc_table_entry *entry, *next;
     for (entry = STAILQ_FIRST(&enc->hpe_all_entries); entry; entry = next)
     {
         next = STAILQ_NEXT(entry, ete_next_all);
@@ -5712,7 +5713,7 @@ lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
 /* Given a dynamic entry, return its table ID */
 static unsigned
 henc_calc_table_id (const struct lshpack_enc *enc,
-                                    const struct enc_table_entry *entry)
+                                    const struct lshpack_enc_table_entry *entry)
 {
     return HPACK_STATIC_TABLE_SIZE
          + (enc->hpe_next_id - entry->ete_id)
@@ -5725,7 +5726,7 @@ henc_find_table_id (struct lshpack_enc *enc, const char *name,
         lshpack_strlen_t name_len, const char *value,
         lshpack_strlen_t value_len, int *val_matched)
 {
-    struct enc_table_entry *entry;
+    struct lshpack_enc_table_entry *entry;
     unsigned name_hash, nameval_hash, buckno, static_table_id;
     XXH32_state_t hash_state;
 
@@ -5933,7 +5934,7 @@ lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
 static void
 henc_drop_oldest_entry (struct lshpack_enc *enc)
 {
-    struct enc_table_entry *entry;
+    struct lshpack_enc_table_entry *entry;
     unsigned buckno;
 
     entry = STAILQ_FIRST(&enc->hpe_all_entries);
@@ -5964,8 +5965,8 @@ henc_remove_overflow_entries (struct lshpack_enc *enc)
 static int
 henc_grow_tables (struct lshpack_enc *enc)
 {
-    struct double_enc_head *new_buckets, *new[2];
-    struct enc_table_entry *entry;
+    struct lshpack_double_enc_head *new_buckets, *new[2];
+    struct lshpack_enc_table_entry *entry;
     unsigned n, old_nbits;
     int idx;
 
@@ -6016,7 +6017,7 @@ lshpack_enc_push_entry (struct lshpack_enc *enc, const char *name,
                         lshpack_strlen_t value_len)
 {
     unsigned name_hash, nameval_hash, buckno;
-    struct enc_table_entry *entry;
+    struct lshpack_enc_table_entry *entry;
     XXH32_state_t hash_state;
     size_t size;
 
@@ -6145,7 +6146,7 @@ int
 lshpack_enc_iter_next (struct lshpack_enc *enc,
                                         struct enc_dyn_table_entry *retval)
 {
-    const struct enc_table_entry *entry;
+    const struct lshpack_enc_table_entry *entry;
 
     entry = enc->hpe_iter;
     if (!entry)
