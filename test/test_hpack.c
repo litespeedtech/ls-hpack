@@ -198,9 +198,10 @@ static void
 printTable (struct lshpack_enc *enc)
 {
     struct enc_dyn_table_entry entry;
-    lshpack_enc_iter_reset(enc);
+    void *iter;
+    lshpack_enc_iter_init(enc, &iter);
     printf("Dynamic Table : \n");
-    while (0 == lshpack_enc_iter_next(enc, &entry))
+    while (0 == lshpack_enc_iter_next(enc, &iter, &entry))
         printf("[%d] `%.*s' = `%.*s'\n",
             entry.entry_id, entry.name_len, entry.name, entry.value_len, entry.value);
 }

@@ -22,12 +22,15 @@ int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
                      const unsigned char *str, lshpack_strlen_t str_len);
 
+typedef void * enc_iter_t;
+
 void
-lshpack_enc_iter_reset (struct lshpack_enc *enc);
+lshpack_enc_iter_init (struct lshpack_enc *enc, void **iter);
 
 /* Returns 0 if entry is found */
 int
-lshpack_enc_iter_next (struct lshpack_enc *enc, struct enc_dyn_table_entry *);
+lshpack_enc_iter_next (struct lshpack_enc *enc, void **iter,
+                                            struct enc_dyn_table_entry *);
 
 int
 lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,

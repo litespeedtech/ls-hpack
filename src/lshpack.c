@@ -6135,24 +6135,24 @@ lshpack_enc_set_max_capacity (struct lshpack_enc *enc, unsigned max_capacity)
 
 #if LS_HPACK_EMIT_TEST_CODE
 void
-lshpack_enc_iter_reset (struct lshpack_enc *enc)
+lshpack_enc_iter_init (struct lshpack_enc *enc, void **iter)
 {
-    enc->hpe_iter = STAILQ_FIRST(&enc->hpe_all_entries);
+    *iter = STAILQ_FIRST(&enc->hpe_all_entries);
 }
 
 
 /* Returns 0 if entry is found */
 int
-lshpack_enc_iter_next (struct lshpack_enc *enc,
+lshpack_enc_iter_next (struct lshpack_enc *enc, void **iter,
                                         struct enc_dyn_table_entry *retval)
 {
     const struct lshpack_enc_table_entry *entry;
 
-    entry = enc->hpe_iter;
+    entry = *iter;
     if (!entry)
         return -1;
 
-    enc->hpe_iter = STAILQ_NEXT(entry, ete_next_all);
+    *iter = STAILQ_NEXT(entry, ete_next_all);
 
     retval->name = ETE_NAME(entry);
     retval->value = ETE_VALUE(entry);
