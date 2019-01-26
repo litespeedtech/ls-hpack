@@ -1218,8 +1218,10 @@ main (int argc, char **argv)
     for (i = 0; i < N_HEADERS; ++i)
     {
         end = lshpack_enc_encode(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
-            header_arr[i].name.iov_base, header_arr[i].name.iov_len,
-            header_arr[i].value.iov_base, header_arr[i].value.iov_len, 0);
+            header_arr[i].name.iov_base,
+                (lshpack_strlen_t) header_arr[i].name.iov_len,
+            header_arr[i].value.iov_base,
+                (lshpack_strlen_t) header_arr[i].value.iov_len, 0);
         assert(end > tmp_buf);
         if (end - tmp_buf > (intptr_t) compressed.nalloc - (intptr_t) compressed.sz)
         {
