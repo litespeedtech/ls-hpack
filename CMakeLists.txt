@@ -26,14 +26,25 @@ ELSE()
     INCLUDE_DIRECTORIES(deps/xxhash)
 ENDIF()
 
-SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Wall -Wextra -Wno-unused-parameter")
-SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -fno-omit-frame-pointer")
-IF (RELEASE EQUAL 1)
-    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O3 -g0")
-ELSE()
-    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O0 -g3 -DLS_HPACK_EMIT_TEST_CODE=1")
-    # -Werror is used to force us to fix warnings early.
-    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Werror")
+IF (MSVC)
+    INCLUDE_DIRECTORIES(wincompat)
+ENDIF()
+
+IF (CMAKE_C_COMPILER EQUAL gcc
+	OR CMAKE_C_COMPILER EQUAL clang)
+	SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Wall -Wextra -Wno-unused-parameter")
+	SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -fno-omit-frame-pointer")
+	IF (RELEASE EQUAL 1)
+	    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O3 -g0")
+	ELSE()
+	    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -O0 -g3")
+	    # -Werror is used to force us to fix warnings early.
+	    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Werror")
+	ENDIF()
+ENDIF()
+
+IF (NOT RELEASE EQUAL 1)
+    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -DLS_HPACK_EMIT_TEST_CODE=1")
 ENDIF()
 
 IF (NDEBUG EQUAL 1)
