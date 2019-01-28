@@ -1,3 +1,5 @@
+[![Build status](https://ci.appveyor.com/api/projects/status/6ev71ecmm3j2u9o5?svg=true)](https://ci.appveyor.com/project/litespeedtech/ls-hpack)
+
 LS-HPACK: LiteSpeed HPACK Library
 =================================
 
