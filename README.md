@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/litespeedtech/ls-hpack.svg?branch=master)](https://travis-ci.org/litespeedtech/ls-hpack)
+[![Build Status](https://api.cirrus-ci.com/github/litespeedtech/ls-hpack.svg)](https://cirrus-ci.com/github/litespeedtech/ls-hpack)
 [![Build status](https://ci.appveyor.com/api/projects/status/6ev71ecmm3j2u9o5?svg=true)](https://ci.appveyor.com/project/litespeedtech/ls-hpack)
 
 LS-HPACK: LiteSpeed HPACK Library
