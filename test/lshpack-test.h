@@ -11,12 +11,17 @@ struct enc_dyn_table_entry
 };
 
 unsigned
-lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
-                const char *val, lshpack_strlen_t val_len, int *val_matched);
+lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
+                                            lshpack_strlen_t name_len);
+
+unsigned
+lshpack_enc_get_static_nameval (uint32_t nameval_hash, const char *name,
+        lshpack_strlen_t name_len, const char *val, lshpack_strlen_t val_len);
 
 int
-lshpack_enc_push_entry (struct lshpack_enc *enc, const char *name,
-    lshpack_strlen_t name_len, const char *value, lshpack_strlen_t value_len);
+lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
+    uint32_t nameval_hash, const char *name, lshpack_strlen_t name_len,
+    const char *value, lshpack_strlen_t value_len);
 
 int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,

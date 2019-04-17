@@ -12,6 +12,7 @@
 
 #include "lshpack.h"
 #include "lshpack-test.h"
+#include "xxhash.h"
 
 struct http_header
 {
@@ -207,15 +208,50 @@ printTable (struct lshpack_enc *enc)
 }
 
 
+static unsigned
+lookup_static_table (const char *name, lshpack_strlen_t name_len,
+                 const char *val, lshpack_strlen_t val_len, int *val_matched)
+{
+    uint32_t name_hash, nameval_hash;
+    XXH32_state_t hash_state;
+    unsigned id;
+
+    XXH32_reset(&hash_state, 0);
+    XXH32_update(&hash_state, name, name_len);
+    name_hash = XXH32_digest(&hash_state);
+    XXH32_update(&hash_state, val, val_len);
+    nameval_hash = XXH32_digest(&hash_state);
+
+    id = lshpack_enc_get_static_nameval(nameval_hash, name, name_len,
+                                                            val, val_len);
+    if (id)
+    {
+        *val_matched = 1;
+        return id;
+    }
+
+    id = lshpack_enc_get_static_name(name_hash, name, name_len);
+    if (id)
+    {
+        *val_matched = 0;
+        return id;
+    }
+
+    return 0;
+}
+
+
 void testNameValue(const char *name, const char *val, int result,
         int val_match_result)
 {
     int val_match;
-    int index = lshpack_enc_get_stx_tab_id((char *)name, (uint16_t)strlen(name) ,
+    int index = lookup_static_table((char *)name, (uint16_t)strlen(name) ,
             (char *)val, (uint16_t)strlen(val), &val_match);
     printf("name: %s, val: %s, index = %d match = %d\n", name, val, index,
             val_match);
-    assert(index == result && val_match == val_match_result);
+    assert(index == result);
+    if (index)
+        assert(val_match == val_match_result);
 }
 
 
@@ -676,6 +712,8 @@ test_hpack_self_enc_dec_test_firefox_error (void)
 {
     unsigned char respBuf[8192] = {0};
     unsigned char *respBufEnd;
+    XXH32_state_t hash_state;
+    uint32_t name_hash, nameval_hash;
     // Hpack hpack;
     struct lshpack_enc henc;
     lshpack_enc_init(&henc);
@@ -686,7 +724,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
     for (i = nCount - 1; i >= 0; --i)
     {
         int val_match;
-        int staticTableIndex = lshpack_enc_get_stx_tab_id((char *)
+        int staticTableIndex = lookup_static_table((char *)
                 g_hpack_dyn_init_table_t[i].name,
                 g_hpack_dyn_init_table_t[i].name_len,
                 (char *)g_hpack_dyn_init_table_t[i].val,
@@ -702,7 +740,16 @@ test_hpack_self_enc_dec_test_firefox_error (void)
                 (char *)g_hpack_dyn_init_table_t[i].val,
                 g_hpack_dyn_init_table_t[i].val_len);
 
+        XXH32_reset(&hash_state, 0);
+        XXH32_update(&hash_state, g_hpack_dyn_init_table_t[i].name,
+                                g_hpack_dyn_init_table_t[i].name_len);
+        name_hash = XXH32_digest(&hash_state);
+        XXH32_update(&hash_state, g_hpack_dyn_init_table_t[i].val,
+                                g_hpack_dyn_init_table_t[i].val_len);
+        nameval_hash = XXH32_digest(&hash_state);
+
         lshpack_enc_push_entry(&henc,
+                name_hash, nameval_hash,
                 (char *)g_hpack_dyn_init_table_t[i].name,
                 g_hpack_dyn_init_table_t[i].name_len,
                 (char *)g_hpack_dyn_init_table_t[i].val,
@@ -1025,7 +1072,7 @@ test_static_table_search_exhaustive (void)
     int id;
     for (i = 0; i < count; ++i)
     {
-        id = lshpack_enc_get_stx_tab_id((char *)g_HpackStaticTableTset[i].name,
+        id = lookup_static_table((char *)g_HpackStaticTableTset[i].name,
                 g_HpackStaticTableTset[i].name_len,
                 (char *)g_HpackStaticTableTset[i].val,
                 g_HpackStaticTableTset[i].val_len,
@@ -1037,42 +1084,42 @@ test_static_table_search_exhaustive (void)
             assert(val_matched == 0);
     }
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"Get", 3,
+    id = lookup_static_table((char *)":method", 7, (char *)"Get", 3,
             &val_matched);
     assert(id == 2);
     assert(val_matched == 0);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"GGG", 3,
+    id = lookup_static_table((char *)":method", 7, (char *)"GGG", 3,
             &val_matched);
     assert(id == 2);
     assert(val_matched == 0);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"gET", 3,
+    id = lookup_static_table((char *)":method", 7, (char *)"gET", 3,
             &val_matched);
     assert(id == 2);
     assert(val_matched == 0);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"GETsss", 6,
+    id = lookup_static_table((char *)":method", 7, (char *)"GETsss", 6,
             &val_matched);
     assert(id == 2);
     assert(val_matched == 0);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"GETsss", 3,
+    id = lookup_static_table((char *)":method", 7, (char *)"GETsss", 3,
             &val_matched);
     assert(id == 2);
     assert(val_matched == 1);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":method", 7, (char *)"POST", 4,
+    id = lookup_static_table((char *)":method", 7, (char *)"POST", 4,
             &val_matched);
     assert(id == 3);
     assert(val_matched == 1);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":status", 7, (char *)"POST", 4,
+    id = lookup_static_table((char *)":status", 7, (char *)"POST", 4,
             &val_matched);
     assert(id == 8);
     assert(val_matched == 0);
 
-    id = lshpack_enc_get_stx_tab_id((char *)":status", 7, (char *)"2000", 4,
+    id = lookup_static_table((char *)":status", 7, (char *)"2000", 4,
             &val_matched);
     assert(id == 8);
     assert(val_matched == 0);
