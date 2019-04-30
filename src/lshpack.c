@@ -50,8 +50,8 @@ SOFTWARE.
 
 static const struct
 {
-    lshpack_strlen_t  name_len;
-    lshpack_strlen_t  val_len;
+    unsigned          name_len;
+    unsigned          val_len;
     const char       *name;
     const char       *val;
 }
@@ -5348,8 +5348,8 @@ struct lshpack_enc_table_entry
     unsigned                        ete_id;
     unsigned                        ete_nameval_hash;
     unsigned                        ete_name_hash;
-    lshpack_strlen_t                ete_name_len;
-    lshpack_strlen_t                ete_val_len;
+    unsigned                ete_name_len;
+    unsigned                ete_val_len;
     char                            ete_buf[0];
 };
 
@@ -5441,7 +5441,7 @@ static
 #endif
        unsigned
 lshpack_enc_get_static_nameval (uint32_t nameval_hash, const char *name,
-        lshpack_strlen_t name_len, const char *val, lshpack_strlen_t val_len)
+        unsigned name_len, const char *val, unsigned val_len)
 {
     unsigned i;
 
@@ -5466,7 +5466,7 @@ static
 #endif
        unsigned
 lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
-                                            lshpack_strlen_t name_len)
+                                            unsigned name_len)
 {
     unsigned i;
 
@@ -5499,8 +5499,8 @@ henc_calc_table_id (const struct lshpack_enc *enc,
 static unsigned
 henc_find_table_id (struct lshpack_enc *enc, uint32_t name_hash,
         uint32_t nameval_hash, const char *name,
-        lshpack_strlen_t name_len, const char *value,
-        lshpack_strlen_t value_len, int *val_matched)
+        unsigned name_len, const char *value,
+        unsigned value_len, int *val_matched)
 {
     struct lshpack_enc_table_entry *entry;
     unsigned buckno, static_table_id;
@@ -5549,9 +5549,12 @@ henc_find_table_id (struct lshpack_enc *enc, uint32_t name_hash,
 }
 
 
-static unsigned char *
-henc_enc_int (unsigned char *dst, unsigned char *const end, uint32_t value,
-                                                        uint8_t prefix_bits)
+#if !LS_HPACK_EMIT_TEST_CODE
+static
+#endif
+       unsigned char *
+lshpack_enc_enc_int (unsigned char *dst, unsigned char *const end,
+                                        uint32_t value, uint8_t prefix_bits)
 {
     unsigned char *const dst_orig = dst;
 
@@ -5665,7 +5668,7 @@ static
 #endif
        int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
-                        const unsigned char *str, lshpack_strlen_t str_len)
+                        const unsigned char *str, unsigned str_len)
 {
     unsigned char size_buf[4];
     unsigned char *p;
@@ -5718,7 +5721,7 @@ lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
     /* The guess of one-byte size was incorrect.  Perform necessary
      * adjustments.
      */
-    p = henc_enc_int(size_buf, size_buf + sizeof(size_buf), str_len, 7);
+    p = lshpack_enc_enc_int(size_buf, size_buf + sizeof(size_buf), str_len, 7);
     if (p == size_buf)
         return -1;
 
@@ -5819,8 +5822,8 @@ static
 #endif
        int
 lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
-        uint32_t nameval_hash, const char *name, lshpack_strlen_t name_len,
-        const char *value, lshpack_strlen_t value_len)
+        uint32_t nameval_hash, const char *name, unsigned name_len,
+        const char *value, unsigned value_len)
 {
     struct lshpack_enc_table_entry *entry;
     unsigned buckno;
@@ -5860,8 +5863,8 @@ lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
 
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
-        unsigned char *dst_end, const char *name, lshpack_strlen_t name_len,
-        const char *value, lshpack_strlen_t value_len, int indexed_type)
+        unsigned char *dst_end, const char *name, unsigned name_len,
+        const char *value, unsigned value_len, int indexed_type)
 {
     //indexed_type: 0, Add, 1,: without, 2: never
     static const char indexed_prefix_number[] = {0x40, 0x00, 0x10};
@@ -5889,7 +5892,7 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
         if (val_matched)
         {
             *dst = 0x80;
-            dst = henc_enc_int(dst, dst_end, table_id, 7);
+            dst = lshpack_enc_enc_int(dst, dst_end, table_id, 7);
             /* No need to check return value: we pass it up as-is because
              * the behavior is the same.
              */
@@ -5898,7 +5901,7 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
         else
         {
             *dst = indexed_prefix_number[indexed_type];
-            dst = henc_enc_int(dst, dst_end, table_id,
+            dst = lshpack_enc_enc_int(dst, dst_end, table_id,
                                             ((indexed_type == 0) ? 6 : 4));
             if (dst == dst_org)
                 return dst_org;
@@ -5973,8 +5976,8 @@ lshpack_enc_iter_next (struct lshpack_enc *enc, void **iter,
 /* Dynamic table entry: */
 struct dec_table_entry
 {
-    uint16_t    dte_name_len;
-    uint16_t    dte_val_len;
+    unsigned    dte_name_len;
+    unsigned    dte_val_len;
     char        dte_buf[0];     /* Contains both name and value */
 };
 
@@ -6019,37 +6022,60 @@ lshpack_dec_cleanup (struct lshpack_dec *dec)
 }
 
 
+/* Maximum number of bytes required to encode a 32-bit integer */
+#define LSHPACK_UINT32_ENC_SZ 6
+
+
+/* Assumption: we have at least one byte to work with */
 #if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
-lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,
-                                        uint8_t prefix_bits, uint32_t *value)
+lshpack_dec_dec_int (const unsigned char **src_p, const unsigned char *src_end,
+                                        unsigned prefix_bits, uint32_t *value_p)
 {
-    uint32_t B, M;
-    uint8_t prefix_max = (1 << prefix_bits) - 1;
+    const unsigned char *const orig_src = *src_p;
+    const unsigned char *src;
+    unsigned prefix_max, M;
+    uint32_t val, B;
 
-    *value = (*(*src)++ & prefix_max);
+    src = *src_p;
 
-    if (*value < prefix_max)
+    prefix_max = (1 << prefix_bits) - 1;
+    val = *src++;
+    val &= prefix_max;
+
+    if (val < prefix_max)
+    {
+        *src_p = src;
+        *value_p = val;
         return 0;
+    }
 
-    /* To optimize the loop for the normal case, the overflow is checked
-     * outside the loop.  The decoder is limited to 28-bit integer values,
-     * which is far above limitations imposed by the APIs (16-bit integers).
-     */
     M = 0;
     do
     {
-        if ((*src) >= src_end)
+        if (src < src_end)
+        {
+            B = *src++;
+            val = val + ((B & 0x7f) << M);
+            M += 7;
+        }
+        else if (src - orig_src < LSHPACK_UINT32_ENC_SZ)
             return -1;
-        B = *(*src)++;
-        *value = *value + ((B & 0x7f) << M);
-        M += 7;
+        else
+            return -2;
     }
     while (B & 0x80);
 
-    return -(M > sizeof(*value) * 8);
+    if (M <= 28 || (M == 35 && src[-1] <= 0xF && val - (src[-1] << 28) < val))
+    {
+        *src_p = src;
+        *value_p = val;
+        return 0;
+    }
+    else
+        return -2;
 }
 
 
@@ -6209,7 +6235,7 @@ static
 #endif
        int
 lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
-                        uint16_t name_len, const char *val, uint16_t val_len)
+                        unsigned name_len, const char *val, unsigned val_len)
 {
     struct dec_table_entry *entry;
     size_t size;
@@ -6237,7 +6263,7 @@ lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
 int
 lshpack_dec_decode (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
-    char *dst, char *const dst_end, uint16_t *name_len, uint16_t *val_len)
+    char *dst, char *const dst_end, unsigned *name_len, unsigned *val_len)
 {
     struct dec_table_entry *entry;
     uint32_t index, new_capacity;
@@ -6355,8 +6381,6 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         len = hdec_dec_str((unsigned char *)name, dst_end - dst, src, src_end);
         if (len < 0)
             return len; //error
-        if (len > UINT16_MAX)
-            return -2;
         *name_len = len;
     }
 
@@ -6364,8 +6388,6 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                                     dst_end - dst - *name_len, src, src_end);
     if (len < 0)
         return len; //error
-    if (len > UINT16_MAX)
-        return -2;
     *val_len = len;
 
     if (indexed_type == 0)

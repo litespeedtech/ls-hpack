@@ -30,9 +30,9 @@ static struct http_header header_arr[N_HEADERS];
 struct table_elem
 {
     const char *name;
-    lshpack_strlen_t name_len;
+    unsigned name_len;
     const char *val;
-    lshpack_strlen_t val_len;
+    unsigned val_len;
 };
 
 static struct table_elem g_hpack_dyn_init_table_t[] =
@@ -209,8 +209,8 @@ printTable (struct lshpack_enc *enc)
 
 
 static unsigned
-lookup_static_table (const char *name, lshpack_strlen_t name_len,
-                 const char *val, lshpack_strlen_t val_len, int *val_matched)
+lookup_static_table (const char *name, unsigned name_len,
+                 const char *val, unsigned val_len, int *val_matched)
 {
     uint32_t name_hash, nameval_hash;
     XXH32_state_t hash_state;
@@ -245,8 +245,8 @@ void testNameValue(const char *name, const char *val, int result,
         int val_match_result)
 {
     int val_match;
-    int index = lookup_static_table((char *)name, (uint16_t)strlen(name) ,
-            (char *)val, (uint16_t)strlen(val), &val_match);
+    int index = lookup_static_table((char *)name, (unsigned)strlen(name) ,
+            (char *)val, (unsigned)strlen(val), &val_match);
     printf("name: %s, val: %s, index = %d match = %d\n", name, val, index,
             val_match);
     assert(index == result);
@@ -391,8 +391,8 @@ test_hpack_test_RFC_Example (void)
     //     char name[1024];
     //     char val[1024];
     char out[2048];
-    uint16_t name_len = 1024;
-    uint16_t val_len = 1024;
+    unsigned name_len = 1024;
+    unsigned val_len = 1024;
     while (pSrc < bufEnd)
     {
         rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, out, out + sizeof(out),
@@ -456,7 +456,7 @@ test_decode_limits (void)
     char out[0x100];
     struct lshpack_enc henc;
     struct lshpack_dec hdec;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     int s;
     unsigned enough[] = { 33, 34, 40, 50, 100, };
     unsigned not_enough[] = { 32, 31, 30, 10, 1, 0, };
@@ -515,8 +515,8 @@ test_hpack_self_enc_dec_test (void)
     //     char name[1024];
     //     char val[1024];
     char out[2048];
-    uint16_t name_len = 0;
-    uint16_t val_len = 0;
+    unsigned name_len = 0;
+    unsigned val_len = 0;
 
     lshpack_enc_set_max_capacity(&henc, 256);
     lshpack_dec_set_max_capacity(&hdec, 256);
@@ -692,7 +692,7 @@ test_hpack_encode_and_decode (void)
             STR_TO_IOVEC_TEST("www.example.com"), 0);
     assert(enc > buf);
 
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     int rc = lshpack_dec_decode(&hdec, &dec, enc, out, out + sizeof(out), &name_len,
                                                                 &val_len);
     assert(rc == 0);
@@ -773,7 +773,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
 
     //AutoBuf autoBuf(2048);
     char out[2048];
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
 
     unsigned char *pBuf = respBuf;
     respBufEnd = respBuf + 8192;
@@ -805,7 +805,7 @@ static void
 test_hdec_table_size_updates (void)
 {
     const unsigned char *src;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     struct lshpack_dec hdec;
     char outbuf[0x100];
     int s;
@@ -951,7 +951,7 @@ test_henc_nonascii (void)
     const unsigned char *src;
     struct lshpack_enc henc;
     struct lshpack_dec hdec;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     unsigned char comp[0x100];
     char uncomp[0x100];
 
@@ -992,7 +992,7 @@ test_henc_long_compressable (void)
     const unsigned char *src;
     struct lshpack_enc henc;
     struct lshpack_dec hdec;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     unsigned char comp[0x1000];
     char uncomp[0x1000];
 
@@ -1040,7 +1040,7 @@ test_henc_long_uncompressable (void)
     const unsigned char *src;
     struct lshpack_enc henc;
     struct lshpack_dec hdec;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     unsigned char comp[0x1000];
     char uncomp[0x1000];
 
@@ -1129,89 +1129,6 @@ test_static_table_search_exhaustive (void)
 
 
 static void
-test_integer_decoding (void)
-{
-    static const struct integer_decoding_test
-    {
-        int             idt_lineno;
-        /* Input: */
-        unsigned char   idt_src_buf[40];
-        unsigned        idt_src_sz;
-        uint8_t         idt_pfx_bits;
-        /* Output: */
-        int             idt_status;
-        uint32_t        idt_value;
-    }
-    tests[] = {
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0xFE, },
-            .idt_src_sz     = 1,
-            .idt_pfx_bits   = 4,
-            .idt_status     = 0,
-            .idt_value      = 0xE,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0x3F, 0x64, },
-            .idt_src_sz     = 2,
-            .idt_pfx_bits   = 6,
-            .idt_status     = 0,
-            .idt_value      = 0x3F + 0x64,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0xFF, },
-            .idt_src_sz     = 1,
-            .idt_pfx_bits   = 4,
-            .idt_status     = -1,   /* Ran out of buffer */
-            .idt_value      = 0,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0x87, 0xF0, 0x80, 0x7F, },
-            .idt_src_sz     = 4,
-            .idt_pfx_bits   = 3,
-            .idt_status     = 0,
-            .idt_value      = 0b111111100000001110111,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0x87, 0x80, 0x80, 0x80, 0x01, },
-            .idt_src_sz     = 5,
-            .idt_pfx_bits   = 3,
-            .idt_status     = 0,
-            .idt_value      = 0b1000000000000000000111,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0x87, 0x80, 0x80, 0x80, 0x01, },
-            .idt_src_sz     = 4,
-            .idt_pfx_bits   = 3,
-            .idt_status     = -1,   /* Ran out of buffer */
-            .idt_value      = 0,
-        },
-        {   .idt_lineno     = __LINE__,
-            .idt_src_buf    = { 0x87, 0x80, 0x80, 0x80, 0x80, 0x01, },
-            .idt_src_sz     = 6,
-            .idt_pfx_bits   = 3,
-            .idt_status     = -1,   /* Overflow */
-            .idt_value      = 0,
-        },
-    };
-
-    const struct integer_decoding_test *test;
-    const unsigned char *src;
-    uint32_t value;
-    int s;
-
-    for (test = tests; test < tests + sizeof(tests) / sizeof(tests[0]); ++test)
-    {
-        src = test->idt_src_buf;
-        s = lshpack_dec_dec_int(&src, src + test->idt_src_sz,
-                                        test->idt_pfx_bits, &value);
-        assert(s == test->idt_status);
-        if (0 == s)
-            assert(value == test->idt_value);
-    }
-}
-
-
-static void
 test_huffman_encoding_corner_cases (void)
 {
     int s;
@@ -1254,7 +1171,7 @@ main (int argc, char **argv)
     } compressed = { NULL, 0, 0, };
     unsigned char tmp_buf[0x100];
     const unsigned char *end, *comp;
-    uint16_t name_len, val_len;
+    unsigned name_len, val_len;
     int s;
     char out[0x1000];
     struct lshpack_dec hdec;
@@ -1266,9 +1183,9 @@ main (int argc, char **argv)
     {
         end = lshpack_enc_encode(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
             header_arr[i].name.iov_base,
-                (lshpack_strlen_t) header_arr[i].name.iov_len,
+                (unsigned) header_arr[i].name.iov_len,
             header_arr[i].value.iov_base,
-                (lshpack_strlen_t) header_arr[i].value.iov_len, 0);
+                (unsigned) header_arr[i].value.iov_len, 0);
         assert(end > tmp_buf);
         if (end - tmp_buf > (intptr_t) compressed.nalloc - (intptr_t) compressed.sz)
         {
@@ -1300,7 +1217,6 @@ main (int argc, char **argv)
     free(compressed.buf);
     lshpack_dec_cleanup(&hdec);
 
-    test_integer_decoding();
     test_decode_limits();
     test_static_table_search_simple();
     test_static_table_search_exhaustive();

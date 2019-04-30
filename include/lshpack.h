@@ -31,13 +31,8 @@ extern "C" {
 
 #include <stdint.h>
 
-/**
- * Strings up to 65535 characters in length are supported.
- */
-typedef uint16_t lshpack_strlen_t;
-
 /** Maximum length is defined for convenience */
-#define LSHPACK_MAX_STRLEN UINT16_MAX
+#define LSHPACK_MAX_STRLEN UINT_MAX
 
 struct lshpack_enc;
 struct lshpack_dec;
@@ -72,8 +67,8 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-    unsigned char *dst_end, const char *name, lshpack_strlen_t name_len,
-    const char *value, lshpack_strlen_t value_len, int indexed_type);
+    unsigned char *dst_end, const char *name, unsigned name_len,
+    const char *value, unsigned value_len, int indexed_type);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
@@ -99,8 +94,8 @@ lshpack_dec_cleanup (struct lshpack_dec *);
 int
 lshpack_dec_decode (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
-    char *dst, char *const dst_end, lshpack_strlen_t *name_len,
-    lshpack_strlen_t *val_len);
+    char *dst, char *const dst_end, unsigned *name_len,
+    unsigned *val_len);
 
 void
 lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
