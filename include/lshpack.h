@@ -150,6 +150,9 @@ struct lshpack_dec
     struct lshpack_arr hpd_dyn_table;
 };
 
+/* Used for compatibility: this typedef is deprecated */
+typedef unsigned lshpack_strlen_t;
+
 #ifdef __cplusplus
 }
 #endif
