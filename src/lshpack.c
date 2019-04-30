@@ -5348,8 +5348,8 @@ struct lshpack_enc_table_entry
     unsigned                        ete_id;
     unsigned                        ete_nameval_hash;
     unsigned                        ete_name_hash;
-    unsigned                ete_name_len;
-    unsigned                ete_val_len;
+    unsigned                        ete_name_len;
+    unsigned                        ete_val_len;
     char                            ete_buf[0];
 };
 
