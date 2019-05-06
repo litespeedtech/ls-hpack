@@ -5360,6 +5360,20 @@ struct lshpack_enc_table_entry
 #define N_BUCKETS(n_bits) (1U << (n_bits))
 #define BUCKNO(n_bits, hash) ((hash) & (N_BUCKETS(n_bits) - 1))
 
+
+/* We estimate average number of entries in the dynamic table to be 1/3
+ * of the theoretical maximum.  This number is used to size the history
+ * buffer: we want it large enough to cover recent entries, yet not too
+ * large to cover entries that appear with a period larger than the
+ * dynamic table.
+ */
+static unsigned
+henc_hist_size (unsigned max_capacity)
+{
+    return max_capacity / DYNAMIC_ENTRY_OVERHEAD / 3;
+}
+
+
 int
 lshpack_enc_init (struct lshpack_enc *enc)
 {
@@ -5403,7 +5417,55 @@ lshpack_enc_cleanup (struct lshpack_enc *enc)
         next = STAILQ_NEXT(entry, ete_next_all);
         free(entry);
     }
+    free(enc->hpe_hist_buf);
     free(enc->hpe_buckets);
+}
+
+
+static int
+henc_use_hist (struct lshpack_enc *enc)
+{
+    unsigned hist_size;
+
+    if (enc->hpe_hist_buf)
+        return 0;
+
+    hist_size = henc_hist_size(INITIAL_DYNAMIC_TABLE_SIZE);
+    if (!hist_size)
+        return 0;
+
+    enc->hpe_hist_buf = malloc(sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
+    if (!enc->hpe_hist_buf)
+        return -1;
+
+    enc->hpe_hist_size = hist_size;
+    enc->hpe_flags |= LSHPACK_ENC_USE_HIST;
+    return 0;
+}
+
+
+int
+lshpack_enc_use_hist (struct lshpack_enc *enc, int on)
+{
+    if (on)
+        return henc_use_hist(enc);
+    else
+    {
+        enc->hpe_flags &= ~LSHPACK_ENC_USE_HIST;
+        free(enc->hpe_hist_buf);
+        enc->hpe_hist_buf = NULL;
+        enc->hpe_hist_size = 0;
+        enc->hpe_hist_idx = 0;
+        enc->hpe_hist_wrapped = 0;
+        return 0;
+    }
+}
+
+
+int
+lshpack_enc_hist_used (const struct lshpack_enc *enc)
+{
+    return (enc->hpe_flags & LSHPACK_ENC_USE_HIST) != 0;
 }
 
 
@@ -5861,6 +5923,74 @@ lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
 }
 
 
+static void
+henc_resize_history (struct lshpack_enc *enc)
+{
+    uint32_t *hist_buf;
+    unsigned hist_size, first, count, i, j;
+
+    hist_size = henc_hist_size(enc->hpe_max_capacity);
+
+    if (hist_size == enc->hpe_hist_size)
+        return;
+
+    if (hist_size == 0)
+    {
+        free(enc->hpe_hist_buf);
+        enc->hpe_hist_buf = NULL;
+        enc->hpe_hist_size = 0;
+        enc->hpe_hist_idx = 0;
+        enc->hpe_hist_wrapped = 0;
+        return;
+    }
+
+    hist_buf = malloc(sizeof(hist_buf[0]) * (hist_size + 1));
+    if (!hist_buf)
+        return;
+
+    if (enc->hpe_hist_wrapped)
+    {
+        first = (enc->hpe_hist_idx + 1) % enc->hpe_hist_size;
+        count = enc->hpe_hist_size;
+    }
+    else
+    {
+        first = 0;
+        count = enc->hpe_hist_idx;
+    }
+    for (i = 0, j = 0; count > 0 && j < hist_size; ++i, ++j, --count)
+        hist_buf[j] = enc->hpe_hist_buf[ (first + i) % enc->hpe_hist_size ];
+    enc->hpe_hist_size = hist_size;
+    enc->hpe_hist_idx = j % hist_size;
+    enc->hpe_hist_wrapped = enc->hpe_hist_idx == 0;
+    free(enc->hpe_hist_buf);
+    enc->hpe_hist_buf = hist_buf;
+}
+
+
+/* Returns true if `nameval_hash' was already in history, false otherwise. */
+static int
+henc_hist_add (struct lshpack_enc *enc, uint32_t nameval_hash)
+{
+    unsigned last;
+    uint32_t *p;
+
+    if (enc->hpe_hist_wrapped)
+        last = enc->hpe_hist_size;
+    else
+        last = enc->hpe_hist_idx;
+
+    enc->hpe_hist_buf[ last ] = nameval_hash;
+    for (p = enc->hpe_hist_buf; *p != nameval_hash; ++p)
+        ;
+    enc->hpe_hist_buf[ enc->hpe_hist_idx ] = nameval_hash;
+    enc->hpe_hist_idx = (enc->hpe_hist_idx + 1) % enc->hpe_hist_size;
+    enc->hpe_hist_wrapped |= enc->hpe_hist_idx == 0;
+
+    return p < enc->hpe_hist_buf + last;
+}
+
+
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
         unsigned char *dst_end, const char *name, unsigned name_len,
@@ -5884,6 +6014,13 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     name_hash = XXH32_digest(&hash_state);
     XXH32_update(&hash_state, value, value_len);
     nameval_hash = XXH32_digest(&hash_state);
+
+    if (enc->hpe_hist_buf)
+    {
+        rc = henc_hist_add(enc, nameval_hash);
+        if (!rc && enc->hpe_hist_wrapped && indexed_type == 0)
+            indexed_type = 1;
+    }
 
     table_id = henc_find_table_id(enc, name_hash, nameval_hash, name,
                                     name_len, value, value_len, &val_matched);
@@ -5940,6 +6077,8 @@ lshpack_enc_set_max_capacity (struct lshpack_enc *enc, unsigned max_capacity)
 {
     enc->hpe_max_capacity = max_capacity;
     henc_remove_overflow_entries(enc);
+    if (lshpack_enc_hist_used(enc))
+        henc_resize_history(enc);
 }
 
 #if LS_HPACK_EMIT_TEST_CODE
