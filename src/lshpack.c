@@ -6075,7 +6075,8 @@ lshpack_enc_set_max_capacity (struct lshpack_enc *enc, unsigned max_capacity)
 {
     enc->hpe_max_capacity = max_capacity;
     henc_remove_overflow_entries(enc);
-    henc_resize_history(enc);
+    if (lshpack_enc_hist_used(enc))
+        henc_resize_history(enc);
 }
 
 #if LS_HPACK_EMIT_TEST_CODE
