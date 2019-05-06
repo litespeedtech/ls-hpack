@@ -74,6 +74,20 @@ void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
 
 /**
+ * Turn history on or off.  Turning history on may fail (malloc), in
+ * which case -1 is returned.
+ */
+int
+lshpack_enc_use_hist (struct lshpack_enc *, int on);
+
+/**
+ * Return true if history is used, false otherwise.  By default,
+ * history is off.
+ */
+int
+lshpack_enc_hist_used (const struct lshpack_enc *);
+
+/**
  * Initialize HPACK decoder structure.
  */
 void

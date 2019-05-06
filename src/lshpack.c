@@ -5378,26 +5378,12 @@ int
 lshpack_enc_init (struct lshpack_enc *enc)
 {
     struct lshpack_double_enc_head *buckets;
-    uint32_t *hist_buf;
     unsigned nbits = 2;
-    unsigned i, hist_size;
+    unsigned i;
 
-    hist_size = henc_hist_size(INITIAL_DYNAMIC_TABLE_SIZE);
     buckets = malloc(sizeof(buckets[0]) * N_BUCKETS(nbits));
     if (!buckets)
         return -1;
-
-    if (hist_size)
-    {
-        hist_buf = malloc(sizeof(hist_buf[0]) * (hist_size + 1));
-        if (!hist_buf)
-        {
-            free(buckets);
-            return -1;
-        }
-    }
-    else
-        hist_buf = NULL;
 
     for (i = 0; i < N_BUCKETS(nbits); ++i)
     {
@@ -5418,8 +5404,6 @@ lshpack_enc_init (struct lshpack_enc *enc)
     enc->hpe_next_id      = ~0 - 3;
     enc->hpe_nbits        = nbits;
     enc->hpe_nelem        = 0;
-    enc->hpe_hist_size    = hist_size;
-    enc->hpe_hist_buf     = hist_buf;
     return 0;
 }
 
@@ -5435,6 +5419,51 @@ lshpack_enc_cleanup (struct lshpack_enc *enc)
     }
     free(enc->hpe_hist_buf);
     free(enc->hpe_buckets);
+}
+
+
+static int
+henc_use_hist (struct lshpack_enc *enc)
+{
+    unsigned hist_size;
+
+    if (enc->hpe_hist_buf)
+        return 0;
+
+    hist_size = henc_hist_size(INITIAL_DYNAMIC_TABLE_SIZE);
+    if (!hist_size)
+        return 0;
+
+    enc->hpe_hist_buf = malloc(sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
+    if (!enc->hpe_hist_buf)
+        return -1;
+
+    enc->hpe_hist_size = hist_size;
+    return 0;
+}
+
+
+int
+lshpack_enc_use_hist (struct lshpack_enc *enc, int on)
+{
+    if (on)
+        return henc_use_hist(enc);
+    else
+    {
+        free(enc->hpe_hist_buf);
+        enc->hpe_hist_buf = NULL;
+        enc->hpe_hist_size = 0;
+        enc->hpe_hist_idx = 0;
+        enc->hpe_hist_wrapped = 0;
+        return 0;
+    }
+}
+
+
+int
+lshpack_enc_hist_used (const struct lshpack_enc *enc)
+{
+    return enc->hpe_hist_buf != NULL;
 }
 
 

@@ -57,6 +57,7 @@ usage (const char *name)
 "   -o FILE     Output file.  If not spepcified or set to `-', the output\n"
 "                 is written to stdout.\n"
 "   -K          Discard output: encoded output is discarded.\n"
+"   -H          Do not use the history heuristic.\n"
 "   -n NUMBER   Number of times to iterate over the header set list.\n"
 "   -t NUMBER   Dynamic table size.  Defaults to %u.\n"
 "   -v          Verbose: print various messages to stderr.\n"
@@ -90,7 +91,7 @@ main (int argc, char **argv)
 {
     FILE *out = stdout;
     int opt, qif_fd;
-    int discard = 0;
+    int discard = 0, use_history = 1;
     unsigned n_iters = 1, n, i;
     unsigned dyn_table_size     = TABLE_SIZE;
     STAILQ_HEAD(, header_set) header_sets = STAILQ_HEAD_INITIALIZER(header_sets);
@@ -102,7 +103,7 @@ main (int argc, char **argv)
     struct lshpack_enc encoder;
     unsigned char buf[0x2000];
 
-    while (-1 != (opt = getopt(argc, argv, "i:o:Kn:t:vh")))
+    while (-1 != (opt = getopt(argc, argv, "Hi:o:Kn:t:vh")))
     {
         switch (opt)
         {
@@ -142,6 +143,9 @@ main (int argc, char **argv)
             break;
         case 'K':
             discard = 1;
+            break;
+        case 'H':
+            use_history = 0;
             break;
         case 't':
             dyn_table_size = atoi(optarg);
@@ -215,6 +219,7 @@ main (int argc, char **argv)
             perror("lshpack_enc_init");
             exit(EXIT_FAILURE);
         }
+        (void) lshpack_enc_use_hist(&encoder, use_history);
 
         STAILQ_FOREACH(hset, &header_sets, next)
         {
