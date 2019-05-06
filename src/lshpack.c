@@ -5439,6 +5439,7 @@ henc_use_hist (struct lshpack_enc *enc)
         return -1;
 
     enc->hpe_hist_size = hist_size;
+    enc->hpe_flags |= LSHPACK_ENC_USE_HIST;
     return 0;
 }
 
@@ -5450,6 +5451,7 @@ lshpack_enc_use_hist (struct lshpack_enc *enc, int on)
         return henc_use_hist(enc);
     else
     {
+        enc->hpe_flags &= ~LSHPACK_ENC_USE_HIST;
         free(enc->hpe_hist_buf);
         enc->hpe_hist_buf = NULL;
         enc->hpe_hist_size = 0;
@@ -5463,7 +5465,7 @@ lshpack_enc_use_hist (struct lshpack_enc *enc, int on)
 int
 lshpack_enc_hist_used (const struct lshpack_enc *enc)
 {
-    return enc->hpe_hist_buf != NULL;
+    return (enc->hpe_flags & LSHPACK_ENC_USE_HIST) != 0;
 }
 
 

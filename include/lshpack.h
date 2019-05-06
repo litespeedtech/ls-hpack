@@ -70,10 +70,6 @@ lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
     unsigned char *dst_end, const char *name, unsigned name_len,
     const char *value, unsigned value_len, int indexed_type);
 
-/**
- * Set maximum dynamic table capacity of the encoder.  Setting the capacity
- * to a low value may turn off history.
- */
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
 
@@ -154,6 +150,9 @@ struct lshpack_enc
     uint32_t           *hpe_hist_buf;
     unsigned            hpe_hist_size, hpe_hist_idx;
     int                 hpe_hist_wrapped;
+    enum {
+        LSHPACK_ENC_USE_HIST    = 1 << 0,
+    }                   hpe_flags;
 };
 
 struct lshpack_arr
