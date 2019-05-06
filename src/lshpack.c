@@ -5984,8 +5984,12 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     XXH32_update(&hash_state, value, value_len);
     nameval_hash = XXH32_digest(&hash_state);
 
-    if (enc->hpe_hist_buf && !henc_hist_add(enc, nameval_hash))
-        indexed_type = 1;
+    if (enc->hpe_hist_buf)
+    {
+        rc = henc_hist_add(enc, nameval_hash);
+        if (!rc && enc->hpe_hist_wrapped && indexed_type == 0)
+            indexed_type = 1;
+    }
 
     table_id = henc_find_table_id(enc, name_hash, nameval_hash, name,
                                     name_len, value, value_len, &val_matched);
