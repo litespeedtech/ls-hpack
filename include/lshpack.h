@@ -132,6 +132,10 @@ struct lshpack_enc
                         hpe_all_entries;
     struct lshpack_double_enc_head
                        *hpe_buckets;
+
+    uint32_t           *hpe_hist_buf;
+    unsigned            hpe_hist_size, hpe_hist_idx;
+    int                 hpe_hist_wrapped;
 };
 
 struct lshpack_arr
