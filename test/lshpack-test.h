@@ -25,7 +25,7 @@ lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
 
 int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
-                     const unsigned char *str, unsigned str_len);
+                     const unsigned char *str, unsigned str_len, unsigned lc);
 
 typedef void * enc_iter_t;
 
@@ -49,5 +49,8 @@ unsigned char *
 lshpack_enc_enc_int (unsigned char *dst, unsigned char *const end, uint32_t value,
                                                        uint8_t prefix_bits);
 
+int
+lshpack_dec_dec_str (unsigned char *dst, size_t dst_len, const unsigned char **src,
+        const unsigned char *src_end);
 
 #endif

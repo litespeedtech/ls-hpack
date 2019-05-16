@@ -88,6 +88,13 @@ int
 lshpack_enc_hist_used (const struct lshpack_enc *);
 
 /**
+ * Turn conversion of headers to lowercase on or off.  Previous value is
+ * returned.  By default, headers are not converted to lowercase.
+ */
+int
+lshpack_enc_lowercase (struct lshpack_enc *, int on);
+
+/**
  * Initialize HPACK decoder structure.
  */
 void
@@ -151,7 +158,8 @@ struct lshpack_enc
     unsigned            hpe_hist_size, hpe_hist_idx;
     int                 hpe_hist_wrapped;
     enum {
-        LSHPACK_ENC_USE_HIST    = 1 << 0,
+        LSHPACK_ENC_LOWERCASE   = 1 << 0,   /* Lowercase headers */
+        LSHPACK_ENC_USE_HIST    = 1 << 1,
     }                   hpe_flags;
 };
 

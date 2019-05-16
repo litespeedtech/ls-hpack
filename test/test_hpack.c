@@ -3,6 +3,7 @@
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -1062,6 +1063,56 @@ test_henc_long_uncompressable (void)
 
 
 static void
+test_misfit_tolower (unsigned lc)
+{
+    unsigned char value[] = {
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200, 200,
+        'A',
+    };
+    int len;
+    const unsigned char *s;
+    unsigned char comp[0x1000], uncomp[0x1000];
+
+    len = lshpack_enc_enc_str(comp, sizeof(comp), value, sizeof(value), lc);
+    assert(len > 0);
+    s = comp;
+    len = lshpack_dec_dec_str(uncomp, sizeof(uncomp), &s, s + len);
+    assert(len = sizeof(value));
+    if (lc)
+        assert('a' == uncomp[len - 1]);
+    else
+        assert('A' == uncomp[len - 1]);
+
+    /* This tests different code path in lshpack_enc_enc_str() where size
+     * fits into one byte:
+     */
+    value[10] = 'A';
+    len = lshpack_enc_enc_str(comp, sizeof(comp), value, 11, lc);
+    assert(len > 0);
+    s = comp;
+    len = lshpack_dec_dec_str(uncomp, sizeof(uncomp), &s, s + len);
+    assert(len = 11);
+    if (lc)
+        assert('a' == uncomp[10]);
+    else
+        assert('A' == uncomp[10]);
+}
+
+
+static void
 test_static_table_search_exhaustive (void)
 {
     int i;
@@ -1135,27 +1186,27 @@ test_huffman_encoding_corner_cases (void)
     unsigned char buf[0x10];
 
     memset(buf, 0, sizeof(buf));
-    s = lshpack_enc_enc_str(buf, sizeof(buf), (unsigned char *) "a", 1);
+    s = lshpack_enc_enc_str(buf, sizeof(buf), (unsigned char *) "a", 1, 0);
     assert(2 == s);
     assert(0 == buf[2]);
 
     memset(buf, 0, sizeof(buf));
-    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 1);
+    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 1, 0);
     assert(-1 == s);
     assert(0 == buf[0]);
 
     memset(buf, 0, sizeof(buf));
-    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 0);
+    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 0, 0);
     assert(1 == s);
     assert(0 == buf[1]);
 
     memset(buf, 0, sizeof(buf));
-    s = lshpack_enc_enc_str(buf, 0, (unsigned char *) "a", 1);
+    s = lshpack_enc_enc_str(buf, 0, (unsigned char *) "a", 1, 0);
     assert(-1 == s);
     assert(0 == buf[0]);
 
     memset(buf, 0, sizeof(buf));
-    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 1000);
+    s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 1000, 0);
     assert(-1 == s);
     assert(0 == buf[1]);
 }
@@ -1164,58 +1215,70 @@ test_huffman_encoding_corner_cases (void)
 int
 main (int argc, char **argv)
 {
-    unsigned i;
+    unsigned i, j;
     struct {
         unsigned char   *buf;
         unsigned         sz, nalloc;
-    } compressed = { NULL, 0, 0, };
+    } compressed;
     unsigned char tmp_buf[0x100];
     const unsigned char *end, *comp;
     unsigned name_len, val_len;
-    int s;
+    int s, lc;
     char out[0x1000];
     struct lshpack_dec hdec;
     struct lshpack_enc henc;
 
-    /* Compress headers, putting them into a single contiguous memory block */
-    lshpack_enc_init(&henc);
-    for (i = 0; i < N_HEADERS; ++i)
+    for (lc = 0; lc < 2; ++lc)
     {
-        end = lshpack_enc_encode(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
-            header_arr[i].name.iov_base,
-                (unsigned) header_arr[i].name.iov_len,
-            header_arr[i].value.iov_base,
-                (unsigned) header_arr[i].value.iov_len, 0);
-        assert(end > tmp_buf);
-        if (end - tmp_buf > (intptr_t) compressed.nalloc - (intptr_t) compressed.sz)
+        memset(&compressed, 0, sizeof(compressed));
+        /* Compress headers, putting them into a single contiguous memory block */
+        lshpack_enc_init(&henc);
+        (void) lshpack_enc_lowercase(&henc, lc);
+        for (i = 0; i < N_HEADERS; ++i)
         {
-            if (compressed.nalloc)
-                compressed.nalloc *= 2;
-            else
-                compressed.nalloc = 0x400;
-            compressed.buf = realloc(compressed.buf, compressed.nalloc);
-            assert(end - tmp_buf <= (intptr_t) compressed.nalloc - (intptr_t) compressed.sz);
+            end = lshpack_enc_encode(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
+                header_arr[i].name.iov_base,
+                    (unsigned) header_arr[i].name.iov_len,
+                header_arr[i].value.iov_base,
+                    (unsigned) header_arr[i].value.iov_len, 0);
+            assert(end > tmp_buf);
+            if (end - tmp_buf > (intptr_t) compressed.nalloc - (intptr_t) compressed.sz)
+            {
+                if (compressed.nalloc)
+                    compressed.nalloc *= 2;
+                else
+                    compressed.nalloc = 0x400;
+                compressed.buf = realloc(compressed.buf, compressed.nalloc);
+                assert(end - tmp_buf <= (intptr_t) compressed.nalloc - (intptr_t) compressed.sz);
+            }
+            memcpy(compressed.buf + compressed.sz, tmp_buf, end - tmp_buf);
+            compressed.sz += end - tmp_buf;
         }
-        memcpy(compressed.buf + compressed.sz, tmp_buf, end - tmp_buf);
-        compressed.sz += end - tmp_buf;
-    }
-    lshpack_enc_cleanup(&henc);
+        lshpack_enc_cleanup(&henc);
 
-    /* Now decompress them and compare with originals: */
-    lshpack_dec_init(&hdec);
-    comp = compressed.buf;
-    end = compressed.buf + compressed.sz;
-    for (i = 0; comp < end; ++i)
-    {
-        s = lshpack_dec_decode(&hdec, &comp, end, out, out + sizeof(out), &name_len, &val_len);
-        assert(s == 0);
-        assert(name_len == header_arr[i].name.iov_len);
-        assert(0 == memcmp(header_arr[i].name.iov_base, out, name_len));
-        assert(val_len == header_arr[i].value.iov_len);
-        assert(0 == memcmp(header_arr[i].value.iov_base, out + name_len, val_len));
+        /* Now decompress them and compare with originals: */
+        lshpack_dec_init(&hdec);
+        comp = compressed.buf;
+        end = compressed.buf + compressed.sz;
+        for (i = 0; comp < end; ++i)
+        {
+            s = lshpack_dec_decode(&hdec, &comp, end, out, out + sizeof(out), &name_len, &val_len);
+            assert(s == 0);
+            assert(name_len == header_arr[i].name.iov_len);
+            if (lc)
+            {
+                assert(0 == strncasecmp(header_arr[i].name.iov_base, out, name_len));
+                for (j = 0; j < name_len; ++j)
+                    assert(!isupper(out[j]));
+            }
+            else
+                assert(0 == memcmp(header_arr[i].name.iov_base, out, name_len));
+            assert(val_len == header_arr[i].value.iov_len);
+            assert(0 == memcmp(header_arr[i].value.iov_base, out + name_len, val_len));
+        }
+        free(compressed.buf);
+        lshpack_dec_cleanup(&hdec);
     }
-    free(compressed.buf);
-    lshpack_dec_cleanup(&hdec);
 
     test_decode_limits();
     test_static_table_search_simple();
@@ -1231,6 +1294,8 @@ main (int argc, char **argv)
     test_henc_long_compressable();
     test_henc_long_uncompressable();
     test_huffman_encoding_corner_cases();
+    test_misfit_tolower(0);
+    test_misfit_tolower(1);
 
     return 0;
 }
