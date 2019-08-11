@@ -72100,17 +72100,20 @@ int
 lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                                             unsigned char *dst, int dst_len)
 {
-    const unsigned char *const orig_src = src;
     unsigned char *const orig_dst = dst;
     const unsigned char *const src_end = src + src_len;
     unsigned char *const dst_end = dst + dst_len;
+    const unsigned char *src_rescan = src;
+    unsigned char *dst_rescan = dst, *last_flush;
     uint64_t buf;
     unsigned avail_bits, len;
     struct hdec hdec;
+    int r;
 
     if (src >= src_end)
         return 0;
 
+    last_flush = NULL;
     if (src + 8 <= src_end)
     {
         buf = ((uint64_t) src[0] << 56)
@@ -72168,11 +72171,18 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             default: *dst++ = hdec.out[2];
             }
             avail_bits -= hdec.lens >> 2;
+            last_flush = dst;
         }
         else if (dst + len > dst_end)
             return -2;
         else
             goto slow_pass;
+    }
+
+    if (0 == (avail_bits & 7) && last_flush == dst)
+    {   /* Remember byte boundary in case we need to use full decoder */
+        src_rescan = src - (avail_bits >> 3);
+        dst_rescan = dst;
     }
 
     if (src + 8 <= src_end)
@@ -72217,8 +72227,11 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     return dst - orig_dst;
 
   slow_pass:
-    /* Just redo the whole thing: it does not occur often enough to optimize
-     * by keeping what has been already decoded.
-     */
-    return lshpack_dec_huff_decode_full(orig_src, src_len, orig_dst, dst_len);
+    /* Use full decoder from the last byte boundary */
+    r = lshpack_dec_huff_decode_full(src_rescan, src_end - src_rescan,
+                                            dst_rescan, dst_end - dst_rescan);
+    if (r >= 0)
+        return dst_rescan - orig_dst + r;
+    else
+        return r;
 }
