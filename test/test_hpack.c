@@ -973,7 +973,7 @@ test_henc_nonascii (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in henc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huffman_enc().
  */
 static void
 test_henc_long_compressable (void)
@@ -1014,7 +1014,7 @@ test_henc_long_compressable (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in henc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huffman_enc().
  */
 static void
 test_henc_long_uncompressable (void)
