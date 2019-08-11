@@ -72172,11 +72172,11 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         buf <<= 16 - avail_bits;
         buf |= (1 << (16 - avail_bits)) - 1;    /* EOF */
         buf &= 0xFFFF;
+        if (buf == 0xFFFF && avail_bits < 8)
+            goto end;
         /* If a byte or more of input is left, this mean there is a valid
          * encoding, not just EOF.
          */
-        if (buf == 0xFFFF && avail_bits < 8)
-            goto end;
         hdec = hdecs[buf];
         len = hdec.lens & 3;
         if (len && dst + len <= dst_end)
