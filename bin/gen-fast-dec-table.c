@@ -145,17 +145,17 @@ generate_entry (uint16_t idx)
             printf("%u,%u,%u", outs[0], outs[1], outs[2]);
             break;
         case 2:
-            printf("0,%u,%u", outs[0], outs[1]);
+            printf("%u,%u,0", outs[0], outs[1]);
             break;
         case 1:
-            printf("0,0,%u", outs[0]);
+            printf("%u,0,0", outs[0]);
             break;
         default:    exit(EXIT_FAILURE);
         }
         printf("}}");
     }
     else
-        printf("{0}");
+        printf("{0,0,0,0,}");
     printf(",\n");
 }
 
