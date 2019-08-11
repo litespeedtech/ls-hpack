@@ -72136,7 +72136,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             buf |= (uint64_t) *src++ <<  0;
         }
         avail_bits += (64 - avail_bits) >> 3 << 3;
-        goto write;
     }
     else
     {
@@ -72150,27 +72149,47 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         while (src < src_end && avail_bits < 57);
     }
 
-    while (avail_bits >= 16)
+    if (dst_end - dst >= avail_bits / 5 && avail_bits >= 16)
     {
-  write:
-        hdec = hdecs[(buf >> (avail_bits - 16)) & 0xFFFF];
-        len = hdec.lens & 3;
-        if (len && dst + len <= dst_end)
+        do
         {
+            hdec = hdecs[(buf >> (avail_bits - 16)) & 0xFFFF];
+            len = hdec.lens & 3;
             switch (len)
             {
-            case 3:  *dst++ = hdec.out[0];
-            case 2:  *dst++ = hdec.out[1];
-            default: *dst++ = hdec.out[2];
+            case 3: *dst++ = hdec.out[0];
+            case 2: *dst++ = hdec.out[1];
+            case 1: *dst++ = hdec.out[2];
+                break;
+            default:
+                goto slow_pass;
             }
             avail_bits -= hdec.lens >> 2;
             last_flush = dst;
         }
-        else if (dst + len > dst_end)
-            return -2;
-        else
-            goto slow_pass;
+        while (avail_bits >= 16);
     }
+    else
+        while (avail_bits >= 16)
+        {
+            hdec = hdecs[(buf >> (avail_bits - 16)) & 0xFFFF];
+            len = hdec.lens & 3;
+            if (len && dst + len <= dst_end)
+            {
+                switch (len)
+                {
+                case 3:  *dst++ = hdec.out[0];
+                case 2:  *dst++ = hdec.out[1];
+                default: *dst++ = hdec.out[2];
+                }
+                avail_bits -= hdec.lens >> 2;
+                last_flush = dst;
+            }
+            else if (dst + len > dst_end)
+                return -2;
+            else
+                goto slow_pass;
+        }
 
     if (src + 8 <= src_end)
         goto fill_fast;
