@@ -6272,7 +6272,7 @@ hdec_huff_dec4bits (uint8_t src_4bits, unsigned char *dst,
 
 
 int
-lshpack_dec_huff_decode_slow (const unsigned char *src, int src_len,
+lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
                                             unsigned char *dst, int dst_len)
 {
     const unsigned char *p_src = src;
@@ -6544,6 +6544,11 @@ lshpack_dec_decode (struct lshpack_dec *dec,
 
 static const struct hdec { uint8_t lens; uint8_t out[3]; } hdecs[] =
 {
+/*
+          ,------------- Number of bits consumed by the index
+          |      ,------ Number of bytes in output; 0 means long or invalid code
+          |      |  ,--- Output, aligned to the right
+          V      V  V                                                         */
 /* 0 */ {(15<<2)|3,{48,48,48}},
 /* 1 */ {(15<<2)|3,{48,48,48}},
 /* 2 */ {(15<<2)|3,{48,48,49}},
@@ -72083,6 +72088,14 @@ static const struct hdec { uint8_t lens; uint8_t out[3]; } hdecs[] =
 };
 
 
+/* The decoder is optimized for the common case.  Most of the time, we decode
+ * data whose encoding is 16 bits or shorter.  This allows us to use a 64 KB
+ * table indexed by two bytes of input which outputs, 1, 2, or 3 bytes at a
+ * time.
+ *
+ * In the case a longer code is encoutered, we fall back to the original
+ * Huffman decoder that supports all code lengths.
+ */
 int
 lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                                             unsigned char *dst, int dst_len)
@@ -72207,5 +72220,5 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     /* Just redo the whole thing: it does not occur often enough to optimize
      * by keeping what has been already decoded.
      */
-    return lshpack_dec_huff_decode_slow(orig_src, src_len, orig_dst, dst_len);
+    return lshpack_dec_huff_decode_full(orig_src, src_len, orig_dst, dst_len);
 }

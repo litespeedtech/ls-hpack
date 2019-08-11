@@ -10,7 +10,7 @@
 #include <string.h>
 
 int
-lshpack_dec_huff_decode_slow (const unsigned char *src, int src_len,
+lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
                                     unsigned char *dst, int dst_len);
 
 int
@@ -34,7 +34,7 @@ main (int argc, char **argv)
     }
 
     if (strcasecmp(argv[3], "slow") == 0)
-        decode = lshpack_dec_huff_decode_slow;
+        decode = lshpack_dec_huff_decode_full;
     else if (strcasecmp(argv[3], "fast") == 0)
         decode = lshpack_dec_huff_decode;
     else
