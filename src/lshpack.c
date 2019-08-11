@@ -72088,6 +72088,9 @@ static const struct hdec { uint8_t lens; uint8_t out[3]; } hdecs[] =
 };
 
 
+#define SHORTEST_CODE 5
+
+
 /* The decoder is optimized for the common case.  Most of the time, we decode
  * data whose encoding is 16 bits or shorter.  This allows us to use a 64 KB
  * table indexed by two bytes of input which outputs, 1, 2, or 3 bytes at a
@@ -72149,7 +72152,8 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         while (src < src_end && avail_bits < 57);
     }
 
-    if (dst_end - dst >= avail_bits / 5 && avail_bits >= 16)
+    if (dst_end - dst >= (ptrdiff_t) (8 * sizeof(buf) / SHORTEST_CODE)
+                                                        && avail_bits >= 16)
     {
         /* Fast loop: don't check destination bounds; use the fact that all
          * table entries below 0xFFFE are valid.
@@ -72208,7 +72212,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     if (src < src_end)
         goto fill_slow;
 
-    if (avail_bits >= 5)
+    if (avail_bits >= SHORTEST_CODE)
     {
         buf <<= 16 - avail_bits;
         buf |= (1 << (16 - avail_bits)) - 1;    /* EOF */
