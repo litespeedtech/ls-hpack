@@ -6337,7 +6337,7 @@ hdec_dec_str (unsigned char *dst, size_t dst_len, const unsigned char **src,
     }
     else
     {
-        if (dst_len < (size_t)(src_end - (*src)))
+        if (dst_len < len)
             ret = -3;  //dst not enough space
         else
         {
