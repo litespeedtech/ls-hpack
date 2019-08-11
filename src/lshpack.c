@@ -72103,8 +72103,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     unsigned char *const orig_dst = dst;
     const unsigned char *const src_end = src + src_len;
     unsigned char *const dst_end = dst + dst_len;
-    const unsigned char *src_rescan = src;
-    unsigned char *dst_rescan = dst, *last_flush;
+    unsigned char *last_flush;
     uint64_t buf;
     unsigned avail_bits, len;
     struct hdec hdec;
@@ -72113,7 +72112,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     if (src >= src_end)
         return 0;
 
-    last_flush = NULL;
+    last_flush = dst;
     if (src + 8 <= src_end)
     {
         buf = ((uint64_t) src[0] << 56)
@@ -72179,12 +72178,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             goto slow_pass;
     }
 
-    if (0 == (avail_bits & 7) && last_flush == dst)
-    {   /* Remember byte boundary in case we need to use full decoder */
-        src_rescan = src - (avail_bits >> 3);
-        dst_rescan = dst;
-    }
-
     if (src + 8 <= src_end)
         goto fill_fast;
     if (src < src_end)
@@ -72227,11 +72220,16 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     return dst - orig_dst;
 
   slow_pass:
-    /* Use full decoder from the last byte boundary */
-    r = lshpack_dec_huff_decode_full(src_rescan, src_end - src_rescan,
-                                            dst_rescan, dst_end - dst_rescan);
+    /* Find previous byte boundary and finish decoding thence. */
+    while (dst > last_flush)
+        avail_bits += encode_table[ *--dst ].bits;
+    while ((avail_bits & 7) && dst > orig_dst)
+        avail_bits += encode_table[ *--dst ].bits;
+    assert((avail_bits & 7) == 0);
+    src -= avail_bits >> 3;
+    r = lshpack_dec_huff_decode_full(src, src_end - src, dst, dst_end - dst);
     if (r >= 0)
-        return dst_rescan - orig_dst + r;
+        return dst - orig_dst + r;
     else
         return r;
 }
