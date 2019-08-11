@@ -14,10 +14,17 @@
 #include "lshpack-test.h"
 #include "xxhash.h"
 
+struct mod_iovec
+{
+    char    iov_base[200];
+    size_t  iov_len;
+};
+
+
 struct http_header
 {
-   struct iovec name;
-   struct iovec value;
+   struct mod_iovec name;
+   struct mod_iovec value;
 };
 
 #define N_HEADERS 10001
@@ -1161,8 +1168,8 @@ test_huffman_encoding_corner_cases (void)
 }
 
 
-int
-main (int argc, char **argv)
+static void
+test_header_arr (void)
 {
     unsigned i;
     struct {
@@ -1216,6 +1223,58 @@ main (int argc, char **argv)
     }
     free(compressed.buf);
     lshpack_dec_cleanup(&hdec);
+}
+
+
+static void
+insert_long_codes_into_header_arr (void)
+{
+    const char codes[] = "\\\x16\x7F\x09";
+    unsigned code_count, i, name, pos, off;
+    char *dst;
+    size_t len;
+
+    code_count = 0, name = 0, pos = 0;
+    for (i = 0; i < N_HEADERS; ++i)
+    {
+        if (name++ & 1)
+        {
+            dst = header_arr[i].name.iov_base;
+            len = header_arr[i].name.iov_len;
+        }
+        else
+        {
+            dst = header_arr[i].value.iov_base;
+            len = header_arr[i].value.iov_len;
+        }
+        switch (pos++ % 3)
+        {
+        case 0:
+            off = 0;
+            break;
+        case 1:
+            off = len / 2;
+            break;
+        case 2:
+            off = len - 1;
+            break;
+        }
+        if (off < len && len > 0)
+            dst[off] = codes[code_count++ & 3];
+    }
+}
+
+
+int
+main (int argc, char **argv)
+{
+    test_header_arr();
+
+    /* Now do the same thing, but with longer codes to exercise the fallback
+     * mechanism.
+     */
+    insert_long_codes_into_header_arr();
+    test_header_arr();
 
     test_decode_limits();
     test_static_table_search_simple();
