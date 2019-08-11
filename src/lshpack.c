@@ -6303,6 +6303,11 @@ lshpack_dec_huff_decode_slow (const unsigned char *src, int src_len,
 }
 
 
+int
+lshpack_dec_huff_decode (const unsigned char *src, int src_len,
+                                            unsigned char *dst, int dst_len);
+
+
 //reutrn the length in the dst, also update the src
 #if !LS_HPACK_EMIT_TEST_CODE
 static
@@ -6326,7 +6331,7 @@ hdec_dec_str (unsigned char *dst, size_t dst_len, const unsigned char **src,
 
     if (is_huffman)
     {
-        ret = lshpack_dec_huff_decode_slow(*src, len, dst, dst_len);
+        ret = lshpack_dec_huff_decode(*src, len, dst, dst_len);
         if (ret < 0)
             return -3; //Wrong code
 
@@ -72162,11 +72167,16 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     if (src < src_end)
         goto fill_slow;
 
-    if (avail_bits)
+    if (avail_bits >= 5)
     {
         buf <<= 16 - avail_bits;
         buf |= (1 << (16 - avail_bits)) - 1;    /* EOF */
         buf &= 0xFFFF;
+        /* If a byte or more of input is left, this mean there is a valid
+         * encoding, not just EOF.
+         */
+        if (buf == 0xFFFF && avail_bits < 8)
+            goto end;
         hdec = hdecs[buf];
         len = hdec.lens & 3;
         if (len && dst + len <= dst_end)
@@ -72184,7 +72194,13 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             /* This must be an invalid code, otherwise it would have fit */
             return -1;
     }
+    else if (avail_bits > 0)
+    {
+        if (((1u << avail_bits) - 1) != (buf & ((1u << avail_bits) - 1)))
+            return -1;  /* Not EOF as expected */
+    }
 
+  end:
     return dst - orig_dst;
 
   slow_pass:
