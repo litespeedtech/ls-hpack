@@ -72112,19 +72112,18 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     struct hdec hdec;
     int r;
 
-    if (src >= src_end)
-        return 0;
-
     last_flush = dst;
     buf = 0;
     avail_bits = 0;
     if (src + 8 <= src_end)
     {
+        goto first_fill;
   fill_fast:
         switch ((64 - avail_bits) >> 3)
         {
         case 8:
             buf <<= 8;
+  first_fill:
             buf |= (uint64_t) *src++;
         case 7:
             buf <<= 8;
@@ -72140,7 +72139,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         }
         avail_bits += (64 - avail_bits) >> 3 << 3;
     }
-    else
+    else if (src < src_end)
     {
         do
         {
@@ -72151,6 +72150,8 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         }
         while (src < src_end && avail_bits < 57);
     }
+    else
+        return 0;
 
     if (dst_end - dst >= (ptrdiff_t) (8 * sizeof(buf) / SHORTEST_CODE)
                                                         && avail_bits >= 16)
