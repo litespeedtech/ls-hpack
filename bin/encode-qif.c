@@ -90,7 +90,7 @@ int
 main (int argc, char **argv)
 {
     FILE *out = stdout;
-    int opt, qif_fd;
+    int opt, qif_fd = -1;
     int discard = 0, use_history = 1;
     unsigned n_iters = 1, n, i;
     unsigned dyn_table_size     = TABLE_SIZE;
@@ -244,6 +244,7 @@ main (int argc, char **argv)
     }
 
     munmap((void *) begin, st.st_size);
-    close(qif_fd);
+    if (qif_fd >= 0)
+        close(qif_fd);
     exit(EXIT_SUCCESS);
 }
