@@ -72113,35 +72113,31 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         return 0;
 
     last_flush = dst;
-    if (src + 8 <= src_end)
-    {
-        buf = ((uint64_t) src[0] << 56)
-            | ((uint64_t) src[1] << 48)
-            | ((uint64_t) src[2] << 40)
-            | ((uint64_t) src[3] << 32)
-            | ((uint64_t) src[4] << 24)
-            | ((uint64_t) src[5] << 16)
-            | ((uint64_t) src[6] <<  8)
-            | ((uint64_t) src[7] <<  0)
-            ;
-        src += 8;
-        avail_bits = 64;
-        goto write;
-    }
-
     buf = 0;
     avail_bits = 0;
-    if (src + 6 <= src_end)
+    if (src + 8 <= src_end)
     {
   fill_fast:
-        buf <<= 48;
-        buf |= (uint64_t) *src++ << 40;
-        buf |= (uint64_t) *src++ << 32;
-        buf |= (uint64_t) *src++ << 24;
-        buf |= (uint64_t) *src++ << 16;
-        buf |= (uint64_t) *src++ <<  8;
-        buf |= (uint64_t) *src++ <<  0;
-        avail_bits += 48;
+        switch ((64 - avail_bits) >> 3)
+        {
+        case 8:
+            buf <<= 8;
+            buf |= (uint64_t) *src++;
+            avail_bits += 8;
+        case 7:
+            buf <<= 8;
+            buf |= (uint64_t) *src++;
+            avail_bits += 8;
+        default:
+            buf <<= 48;
+            buf |= (uint64_t) *src++ << 40;
+            buf |= (uint64_t) *src++ << 32;
+            buf |= (uint64_t) *src++ << 24;
+            buf |= (uint64_t) *src++ << 16;
+            buf |= (uint64_t) *src++ <<  8;
+            buf |= (uint64_t) *src++ <<  0;
+            avail_bits += 48;
+        }
         goto write;
     }
     else
