@@ -72123,11 +72123,9 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         case 8:
             buf <<= 8;
             buf |= (uint64_t) *src++;
-            avail_bits += 8;
         case 7:
             buf <<= 8;
             buf |= (uint64_t) *src++;
-            avail_bits += 8;
         default:
             buf <<= 48;
             buf |= (uint64_t) *src++ << 40;
@@ -72136,8 +72134,8 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             buf |= (uint64_t) *src++ << 16;
             buf |= (uint64_t) *src++ <<  8;
             buf |= (uint64_t) *src++ <<  0;
-            avail_bits += 48;
         }
+        avail_bits += (64 - avail_bits) >> 3 << 3;
         goto write;
     }
     else
