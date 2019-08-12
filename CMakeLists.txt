@@ -45,6 +45,11 @@ IF (CMAKE_C_COMPILER_ID STREQUAL GNU
         IF (PROFILE EQUAL 1)
             SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -g -pg")
         ENDIF()
+        IF (CMAKE_BUILD_TYPE STREQUAL Release)
+            SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -g0 -O3")
+        ELSE()
+            SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -g3 -O0")
+        ENDIF()
 ENDIF()
 
 IF (NOT CMAKE_BUILD_TYPE STREQUAL Release)
