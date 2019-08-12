@@ -1214,8 +1214,25 @@ test_header_arr (void)
     end = compressed.buf + compressed.sz;
     for (i = 0; comp < end; ++i)
     {
-        s = lshpack_dec_decode(&hdec, &comp, end, out, out + sizeof(out), &name_len, &val_len);
-        assert(s == 0);
+        const int dst_sizes[] = { 0, 1, 2, 3, 10, 15, 32, 64, 128, 512,
+                                                                sizeof(out), };
+        const int *size;
+        for (size = dst_sizes; size < dst_sizes + sizeof(dst_sizes)
+                                                / sizeof(dst_sizes[0]); ++size)
+        {
+            const unsigned char *const saved_comp = comp;
+            /* In case of failure, decoder advances the pointer anyway, so we
+             * need to save it.
+             */
+            s = lshpack_dec_decode(&hdec, &comp, end, out, out + *size,
+                                                        &name_len, &val_len);
+            if (s == 0)
+                break;
+            /* There is no return code consistency, unfortunately */
+            assert(s < 0);
+            comp = saved_comp;
+        }
+        assert(size < dst_sizes + sizeof(dst_sizes) / sizeof(dst_sizes[0]));
         assert(name_len == header_arr[i].name.iov_len);
         assert(0 == memcmp(header_arr[i].name.iov_base, out, name_len));
         assert(val_len == header_arr[i].value.iov_len);
