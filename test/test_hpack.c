@@ -14,6 +14,17 @@
 #include "lshpack-test.h"
 #include "xxhash.h"
 
+int
+lshpack_dec_huff_decode (const unsigned char *src, int src_len,
+                                    unsigned char *dst, int dst_len);
+int
+lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
+                                    unsigned char *dst, int dst_len);
+int
+lshpack_enc_huff_encode (const unsigned char *src,
+    const unsigned char *const src_end, unsigned char *const dst,
+    int dst_len);
+
 struct mod_iovec
 {
     char    iov_base[200];
@@ -980,7 +991,7 @@ test_henc_nonascii (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in lshpack_enc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huff_encode().
  */
 static void
 test_henc_long_compressable (void)
@@ -1021,7 +1032,7 @@ test_henc_long_compressable (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in lshpack_enc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huff_encode().
  */
 static void
 test_henc_long_uncompressable (void)
@@ -1285,12 +1296,6 @@ insert_long_codes_into_header_arr (void)
 static void
 test_huff_dec_empty_string (void)
 {
-    int
-    lshpack_dec_huff_decode (const unsigned char *src, int src_len,
-                                        unsigned char *dst, int dst_len);
-    int
-    lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
-                                        unsigned char *dst, int dst_len);
     int sz;
     unsigned char dst[0x10];
 
@@ -1301,6 +1306,51 @@ test_huff_dec_empty_string (void)
     sz = lshpack_dec_huff_decode((unsigned char *) "", 0,
                                                 dst, (int) sizeof(dst));
     assert(sz == 0);
+}
+
+
+static void
+test_huff_dec_trailing_garbage (int full)
+{
+    int
+    (*decode) (const unsigned char *src, int src_len,
+                                        unsigned char *dst, int dst_len);
+    const unsigned char *src;
+    const char *strings[] = {
+        "Dude, where is my car?",
+        "Dude, where is my car\\",
+        "\x01\x02\x03Where is your\\ car, ,\\dude?",
+    };
+    size_t len;
+    unsigned i;
+    int comp_sz, dec_sz;
+    unsigned char comp[0x100];
+    char out[0x100];
+
+    if (full)
+        decode = lshpack_dec_huff_decode_full;
+    else
+        decode = lshpack_dec_huff_decode;
+
+    for (i = 0; i < sizeof(strings) / sizeof(strings[0]); ++i)
+    {
+        src = (unsigned char *) strings[i];
+        len = strlen(strings[i]);
+        comp_sz = lshpack_enc_huff_encode(src, src + len, comp, sizeof(comp));
+        assert(comp_sz > 0);
+        assert(comp_sz + 2 < (int) sizeof(comp));
+        memset(comp + comp_sz, 0xFF, 2);
+        dec_sz = decode(comp, comp_sz, (unsigned char *) out, sizeof(out));
+        assert(dec_sz == (int) len);
+        assert(0 == strncmp(out, strings[i], len));
+        dec_sz = decode(comp, comp_sz + 1, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+        dec_sz = decode(comp, comp_sz + 2, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+        comp[comp_sz-1] &= ~1;  /* Screw up EOF */
+        dec_sz = decode(comp, comp_sz, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+    }
 }
 
 
@@ -1331,6 +1381,8 @@ main (int argc, char **argv)
     test_huffman_encoding_corner_cases();
 
     test_huff_dec_empty_string();
+    test_huff_dec_trailing_garbage(1);
+    test_huff_dec_trailing_garbage(0);
 
     return 0;
 }

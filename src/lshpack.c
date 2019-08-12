@@ -72216,15 +72216,15 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
 
     if (avail_bits >= SHORTEST_CODE)
     {
-        buf <<= 16 - avail_bits;
-        buf |= (1 << (16 - avail_bits)) - 1;    /* EOF */
-        buf &= 0xFFFF;
-        if (buf == 0xFFFF && avail_bits < 8)
+        idx = buf << (16 - avail_bits);
+        idx |= (1 << (16 - avail_bits)) - 1;    /* EOF */
+        idx &= 0xFFFF;
+        if (idx == 0xFFFF && avail_bits < 8)
             goto end;
         /* If a byte or more of input is left, this mean there is a valid
          * encoding, not just EOF.
          */
-        hdec = hdecs[buf];
+        hdec = hdecs[idx];
         len = hdec.lens & 3;
         if (len && dst + len <= dst_end)
         {
@@ -72243,6 +72243,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                 *dst++ = hdec.out[0];
                 break;
             }
+            avail_bits -= hdec.lens >> 2;
         }
         else if (dst + len > dst_end)
             return -2;
@@ -72250,7 +72251,8 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             /* This must be an invalid code, otherwise it would have fit */
             return -1;
     }
-    else if (avail_bits > 0)
+
+    if (avail_bits > 0)
     {
         if (((1u << avail_bits) - 1) != (buf & ((1u << avail_bits) - 1)))
             return -1;  /* Not EOF as expected */
