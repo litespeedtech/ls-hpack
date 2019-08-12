@@ -5,7 +5,7 @@
 #include <string.h>
 
 int
-lshpack_enc_huffman_enc (const unsigned char *src,
+lshpack_enc_huff_encode (const unsigned char *src,
     const unsigned char *const src_end, unsigned char *const dst, int dst_len);
 
 int
@@ -22,7 +22,7 @@ main (int argc, char **argv)
     }
 
     len = strlen(argv[1]);
-    sz = lshpack_enc_huffman_enc((unsigned char *) argv[1],
+    sz = lshpack_enc_huff_encode((unsigned char *) argv[1],
                             (unsigned char *) argv[1] + len, buf, sizeof(buf));
     fwrite(buf, 1, sz, stdout);
 

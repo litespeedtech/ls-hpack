@@ -5648,7 +5648,7 @@ lshpack_enc_enc_int (unsigned char *dst, unsigned char *const end,
 
 
 int
-lshpack_enc_huffman_enc (const unsigned char *src,
+lshpack_enc_huff_encode (const unsigned char *src,
     const unsigned char *const src_end, unsigned char *const dst, int dst_len)
 {
     unsigned char *p_dst = dst;
@@ -5740,7 +5740,7 @@ lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
          * case.  Thus, we immediately write compressed string to the output
          * buffer.  If our guess is not correct, we fix it later.
          */
-        rc = lshpack_enc_huffman_enc(str, str + str_len, dst + 1, dst_len - 1);
+        rc = lshpack_enc_huff_encode(str, str + str_len, dst + 1, dst_len - 1);
     else if (dst_len == 1)
         /* Here, the call can only succeed if the string to encode is empty. */
         rc = 0;
