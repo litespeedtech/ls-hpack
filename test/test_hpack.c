@@ -1265,6 +1265,28 @@ insert_long_codes_into_header_arr (void)
 }
 
 
+static void
+test_huff_dec_empty_string (void)
+{
+    int
+    lshpack_dec_huff_decode (const unsigned char *src, int src_len,
+                                        unsigned char *dst, int dst_len);
+    int
+    lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
+                                        unsigned char *dst, int dst_len);
+    int sz;
+    unsigned char dst[0x10];
+
+    sz = lshpack_dec_huff_decode_full((unsigned char *) "", 0,
+                                                dst, (int) sizeof(dst));
+    assert(sz == 0);
+
+    sz = lshpack_dec_huff_decode((unsigned char *) "", 0,
+                                                dst, (int) sizeof(dst));
+    assert(sz == 0);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1290,6 +1312,8 @@ main (int argc, char **argv)
     test_henc_long_compressable();
     test_henc_long_uncompressable();
     test_huffman_encoding_corner_cases();
+
+    test_huff_dec_empty_string();
 
     return 0;
 }
