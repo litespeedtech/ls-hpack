@@ -14,10 +14,28 @@
 #include "lshpack-test.h"
 #include "xxhash.h"
 
+int
+lshpack_dec_huff_decode (const unsigned char *src, int src_len,
+                                    unsigned char *dst, int dst_len);
+int
+lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
+                                    unsigned char *dst, int dst_len);
+int
+lshpack_enc_huff_encode (const unsigned char *src,
+    const unsigned char *const src_end, unsigned char *const dst,
+    int dst_len);
+
+struct mod_iovec
+{
+    char    iov_base[200];
+    size_t  iov_len;
+};
+
+
 struct http_header
 {
-   struct iovec name;
-   struct iovec value;
+   struct mod_iovec name;
+   struct mod_iovec value;
 };
 
 #define N_HEADERS 10001
@@ -973,7 +991,7 @@ test_henc_nonascii (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in henc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huff_encode().
  */
 static void
 test_henc_long_compressable (void)
@@ -1014,7 +1032,7 @@ test_henc_long_compressable (void)
 
 
 /* Test encoding of string that compresses to a size of 127 bytes or more.
- * This tests adjustment mechanism in henc_huffman_enc().
+ * This tests adjustment mechanism in lshpack_enc_huff_encode().
  */
 static void
 test_henc_long_uncompressable (void)
@@ -1161,8 +1179,8 @@ test_huffman_encoding_corner_cases (void)
 }
 
 
-int
-main (int argc, char **argv)
+static void
+test_header_arr (void)
 {
     unsigned i;
     struct {
@@ -1207,8 +1225,25 @@ main (int argc, char **argv)
     end = compressed.buf + compressed.sz;
     for (i = 0; comp < end; ++i)
     {
-        s = lshpack_dec_decode(&hdec, &comp, end, out, out + sizeof(out), &name_len, &val_len);
-        assert(s == 0);
+        const int dst_sizes[] = { 0, 1, 2, 3, 10, 15, 32, 64, 128, 512,
+                                                                sizeof(out), };
+        const int *size;
+        for (size = dst_sizes; size < dst_sizes + sizeof(dst_sizes)
+                                                / sizeof(dst_sizes[0]); ++size)
+        {
+            const unsigned char *const saved_comp = comp;
+            /* In case of failure, decoder advances the pointer anyway, so we
+             * need to save it.
+             */
+            s = lshpack_dec_decode(&hdec, &comp, end, out, out + *size,
+                                                        &name_len, &val_len);
+            if (s == 0)
+                break;
+            /* There is no return code consistency, unfortunately */
+            assert(s < 0);
+            comp = saved_comp;
+        }
+        assert(size < dst_sizes + sizeof(dst_sizes) / sizeof(dst_sizes[0]));
         assert(name_len == header_arr[i].name.iov_len);
         assert(0 == memcmp(header_arr[i].name.iov_base, out, name_len));
         assert(val_len == header_arr[i].value.iov_len);
@@ -1216,6 +1251,144 @@ main (int argc, char **argv)
     }
     free(compressed.buf);
     lshpack_dec_cleanup(&hdec);
+}
+
+
+static void
+insert_long_codes_into_header_arr (void)
+{
+    const char codes[] = "\\\x16\x7F\x09";
+    unsigned code_count, i, name, pos, off;
+    char *dst;
+    size_t len;
+
+    code_count = 0, name = 0, pos = 0;
+    for (i = 0; i < N_HEADERS; ++i)
+    {
+        if (name++ & 1)
+        {
+            dst = header_arr[i].name.iov_base;
+            len = header_arr[i].name.iov_len;
+        }
+        else
+        {
+            dst = header_arr[i].value.iov_base;
+            len = header_arr[i].value.iov_len;
+        }
+        switch (pos++ % 3)
+        {
+        case 0:
+            off = 0;
+            break;
+        case 1:
+            off = len / 2;
+            break;
+        case 2:
+            off = len - 1;
+            break;
+        }
+        if (off < len && len > 0)
+            dst[off] = codes[code_count++ & 3];
+    }
+}
+
+
+static void
+test_huff_dec_empty_string (void)
+{
+    int sz;
+    unsigned char dst[0x10];
+
+    sz = lshpack_dec_huff_decode_full((unsigned char *) "", 0,
+                                                dst, (int) sizeof(dst));
+    assert(sz == 0);
+
+    sz = lshpack_dec_huff_decode((unsigned char *) "", 0,
+                                                dst, (int) sizeof(dst));
+    assert(sz == 0);
+}
+
+
+static void
+test_huff_dec_trailing_garbage (int full)
+{
+    int
+    (*decode) (const unsigned char *src, int src_len,
+                                        unsigned char *dst, int dst_len);
+    const unsigned char *src;
+    const char *strings[] = {
+        "Dude, where is my car?",
+        "Dude, where is my car\\",
+        "\x01\x02\x03Where is your\\ car, ,\\dude?",
+    };
+    size_t len;
+    unsigned i;
+    int comp_sz, dec_sz;
+    unsigned char comp[0x100];
+    char out[0x100];
+
+    if (full)
+        decode = lshpack_dec_huff_decode_full;
+    else
+        decode = lshpack_dec_huff_decode;
+
+    for (i = 0; i < sizeof(strings) / sizeof(strings[0]); ++i)
+    {
+        src = (unsigned char *) strings[i];
+        len = strlen(strings[i]);
+        comp_sz = lshpack_enc_huff_encode(src, src + len, comp, sizeof(comp));
+        assert(comp_sz > 0);
+        assert(comp_sz + 2 < (int) sizeof(comp));
+        memset(comp + comp_sz, 0xFF, 2);
+        dec_sz = decode(comp, comp_sz, (unsigned char *) out, sizeof(out));
+        assert(dec_sz == (int) len);
+        assert(0 == strncmp(out, strings[i], len));
+        dec_sz = decode(comp, comp_sz + 1, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+        dec_sz = decode(comp, comp_sz + 2, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+        comp[comp_sz-1] &= ~1;  /* Screw up EOF */
+        dec_sz = decode(comp, comp_sz, (unsigned char *) out, sizeof(out));
+        assert(dec_sz < 0);
+    }
+}
+
+
+static void
+test_huff_dec_fallback (void)
+{
+    const unsigned char *src;
+    char input[] = "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@";
+    unsigned i;
+    int comp_sz, dec_sz;
+    unsigned char comp[0x100];
+    char out[0x100];
+
+    for (i = 0; i < sizeof(input); ++i)
+    {
+        input[i] = '\\';    /* Long code to cause fallback */
+        src = (unsigned char *) input;
+        comp_sz = lshpack_enc_huff_encode(src, src + sizeof(input),
+                                                        comp, sizeof(comp));
+        assert(comp_sz > 0);
+        dec_sz = lshpack_dec_huff_decode(comp, comp_sz, (unsigned char *) out,
+                                                                sizeof(out));
+        assert(dec_sz == (int) sizeof(input));
+        assert(0 == memcmp(out, input, sizeof(input)));
+    }
+}
+
+
+int
+main (int argc, char **argv)
+{
+    test_header_arr();
+
+    /* Now do the same thing, but with longer codes to exercise the fallback
+     * mechanism.
+     */
+    insert_long_codes_into_header_arr();
+    test_header_arr();
 
     test_decode_limits();
     test_static_table_search_simple();
@@ -1231,6 +1404,11 @@ main (int argc, char **argv)
     test_henc_long_compressable();
     test_henc_long_uncompressable();
     test_huffman_encoding_corner_cases();
+
+    test_huff_dec_empty_string();
+    test_huff_dec_trailing_garbage(1);
+    test_huff_dec_trailing_garbage(0);
+    test_huff_dec_fallback();
 
     return 0;
 }
