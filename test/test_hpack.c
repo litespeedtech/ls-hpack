@@ -1354,6 +1354,31 @@ test_huff_dec_trailing_garbage (int full)
 }
 
 
+static void
+test_huff_dec_fallback (void)
+{
+    const unsigned char *src;
+    char input[] = "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@";
+    unsigned i;
+    int comp_sz, dec_sz;
+    unsigned char comp[0x100];
+    char out[0x100];
+
+    for (i = 0; i < sizeof(input); ++i)
+    {
+        input[i] = '\\';    /* Long code to cause fallback */
+        src = (unsigned char *) input;
+        comp_sz = lshpack_enc_huff_encode(src, src + sizeof(input),
+                                                        comp, sizeof(comp));
+        assert(comp_sz > 0);
+        dec_sz = lshpack_dec_huff_decode(comp, comp_sz, (unsigned char *) out,
+                                                                sizeof(out));
+        assert(dec_sz == (int) sizeof(input));
+        assert(0 == memcmp(out, input, sizeof(input)));
+    }
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1383,6 +1408,7 @@ main (int argc, char **argv)
     test_huff_dec_empty_string();
     test_huff_dec_trailing_garbage(1);
     test_huff_dec_trailing_garbage(0);
+    test_huff_dec_fallback();
 
     return 0;
 }

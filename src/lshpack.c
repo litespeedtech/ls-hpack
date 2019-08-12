@@ -72107,13 +72107,11 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     unsigned char *const orig_dst = dst;
     const unsigned char *const src_end = src + src_len;
     unsigned char *const dst_end = dst + dst_len;
-    unsigned char *last_flush;
     uint64_t buf;
     unsigned avail_bits, len, idx;
     struct hdec hdec;
     int r;
 
-    last_flush = dst;
     buf = 0;
     avail_bits = 0;
     if (src + 8 <= src_end)
@@ -72171,7 +72169,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                 dst[2] = hdec.out[2];
                 dst += hdec.lens & 3;
                 avail_bits -= hdec.lens >> 2;
-                last_flush = dst;
             }
             else
                 goto slow_pass;
@@ -72201,7 +72198,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                     break;
                 }
                 avail_bits -= hdec.lens >> 2;
-                last_flush = dst;
             }
             else if (dst + len > dst_end)
                 return -2;
@@ -72263,8 +72259,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
 
   slow_pass:
     /* Find previous byte boundary and finish decoding thence. */
-    while (dst > last_flush)
-        avail_bits += encode_table[ *--dst ].bits;
     while ((avail_bits & 7) && dst > orig_dst)
         avail_bits += encode_table[ *--dst ].bits;
     assert((avail_bits & 7) == 0);
