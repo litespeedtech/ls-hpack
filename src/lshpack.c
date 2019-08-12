@@ -6483,14 +6483,14 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     {
         if (index <= HPACK_STATIC_TABLE_SIZE) //static table
         {
-            if (static_table[index - 1].name_len > dst_end - dst)
+            if (static_table[index - 1].name_len > (unsigned) (dst_end - dst))
                 return -1;
             *name_len = static_table[index - 1].name_len;
             memcpy(name, static_table[index - 1].name, *name_len);
             if (indexed_type == 3)
             {
                 if (static_table[index - 1].name_len +
-                    static_table[index - 1].val_len > dst_end - dst)
+                    static_table[index - 1].val_len > (unsigned)(dst_end - dst))
                     return -1;
                 *val_len = static_table[index - 1].val_len;
                 memcpy(name + *name_len, static_table[index - 1].val, *val_len);
@@ -6502,14 +6502,15 @@ lshpack_dec_decode (struct lshpack_dec *dec,
             entry = hdec_get_table_entry(dec, index);
             if (entry == NULL)
                 return -1;
-            if (entry->dte_name_len > dst_end - dst)
+            if (entry->dte_name_len > (unsigned) (dst_end - dst))
                 return -1;
 
             *name_len = entry->dte_name_len;
             memcpy(name, DTE_NAME(entry), *name_len);
             if (indexed_type == 3)
             {
-                if (entry->dte_name_len + entry->dte_val_len > dst_end - dst)
+                if (entry->dte_name_len + entry->dte_val_len
+                                                > (unsigned) (dst_end - dst))
                     return -1;
                 *val_len = entry->dte_val_len;
                 memcpy(name + *name_len, DTE_VALUE(entry), *val_len);
