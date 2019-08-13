@@ -72108,8 +72108,9 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     const unsigned char *const src_end = src + src_len;
     unsigned char *const dst_end = dst + dst_len;
     uint64_t buf;
-    unsigned avail_bits, len, idx;
+    unsigned avail_bits, len;
     struct hdec hdec;
+    uint16_t idx;
     int r;
 
     buf = 0;
@@ -72160,7 +72161,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
          */
         do
         {
-            idx = (buf >> (avail_bits - 16)) & 0xFFFF;
+            idx = buf >> (avail_bits - 16);
             if (idx < 0xFFFE)
             {
                 hdec = hdecs[idx];
@@ -72178,7 +72179,8 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     else
         while (avail_bits >= 16)
         {
-            hdec = hdecs[(buf >> (avail_bits - 16)) & 0xFFFF];
+            idx = buf >> (avail_bits - 16);
+            hdec = hdecs[idx];
             len = hdec.lens & 3;
             if (len && dst + len <= dst_end)
             {
@@ -72214,7 +72216,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     {
         idx = buf << (16 - avail_bits);
         idx |= (1 << (16 - avail_bits)) - 1;    /* EOF */
-        idx &= 0xFFFF;
         if (idx == 0xFFFF && avail_bits < 8)
             goto end;
         /* If a byte or more of input is left, this mean there is a valid
