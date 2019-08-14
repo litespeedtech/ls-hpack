@@ -6431,7 +6431,8 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     {
         if (0 != lshpack_dec_dec_int(src, src_end, 7, &index))
             return -1;
-
+        if (index == 0)
+            return -1;
         indexed_type = 3; //need to parse value
     }
     else if (*(*src) > 0x40) //01 xxxxxx

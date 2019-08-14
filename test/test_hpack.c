@@ -1379,6 +1379,27 @@ test_huff_dec_fallback (void)
 }
 
 
+static void
+test_hdec_static_idx_0 (void)
+{
+    struct lshpack_dec dec;
+    int r;
+    const unsigned char *src;
+    unsigned name_len, val_len;
+    const unsigned char input[] = "\x80\x02""du\x02""de";
+    char out[0x100];
+
+    lshpack_dec_init(&dec);
+
+    src = input;
+    r = lshpack_dec_decode(&dec, &src, src + sizeof(input), out,
+                                    out + sizeof(out), &name_len, &val_len);
+    assert(r == -1);
+
+    lshpack_dec_cleanup(&dec);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1409,6 +1430,7 @@ main (int argc, char **argv)
     test_huff_dec_trailing_garbage(1);
     test_huff_dec_trailing_garbage(0);
     test_huff_dec_fallback();
+    test_hdec_static_idx_0();
 
     return 0;
 }
