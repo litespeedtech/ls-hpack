@@ -5660,38 +5660,28 @@ lshpack_enc_huff_encode (const unsigned char *src,
     while (src != src_end)
     {
         cur_enc_code = encode_table[*src++];
-        if (bits_used + cur_enc_code.bits <= 64)
+        if (bits_used + cur_enc_code.bits < 64)
         {
-  fill:     bits <<= cur_enc_code.bits;
+            bits <<= cur_enc_code.bits;
             bits |= cur_enc_code.code;
             bits_used += cur_enc_code.bits;
+            continue;
         }
-        else if (p_dst + (bits_used >> 3) <= dst_end)
+        else if (p_dst + 8 <= dst_end)
         {
-            adj = (bits_used + 7) & -8;     /* Round up to 8 */
-            bits <<= adj - bits_used;       /* Align to byte boundary */
-            switch (adj >> 3)
-            {                               /* Write out */
-            /* Longest code is 30 bits long, so we must have at least
-             * 65 - 30 = 35 bits.  Round up: 40 bits, or 5 bytes.
-             */
-            case 8: *p_dst++ = bits >> 56;
-            case 7: *p_dst++ = bits >> 48;
-            case 6: *p_dst++ = bits >> 40;
-            case 5: *p_dst++ = bits >> 32;
-                    *p_dst++ = bits >> 24;
-                    *p_dst++ = bits >> 16;
-                    *p_dst++ = bits >> 8;
-                    break;
-            default:
-                    assert(0);
-                    break;
-            }
-            *p_dst = bits;
-            p_dst += adj == bits_used;
-            bits >>= adj - bits_used;       /* Restore alignment */
-            bits_used &= 7;
-            goto fill;
+            bits <<= 64 - bits_used;
+            bits |= cur_enc_code.code >> (cur_enc_code.bits - (64 - bits_used));
+            *p_dst++ = bits >> 56;
+            *p_dst++ = bits >> 48;
+            *p_dst++ = bits >> 40;
+            *p_dst++ = bits >> 32;
+            *p_dst++ = bits >> 24;
+            *p_dst++ = bits >> 16;
+            *p_dst++ = bits >> 8;
+            *p_dst++ = bits;
+            bits_used += cur_enc_code.bits;
+            bits_used &= 64 - 1;
+            bits = cur_enc_code.code;   /* OK not to clear high bits */
         }
         else
             return -1;
