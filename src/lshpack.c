@@ -5690,8 +5690,8 @@ lshpack_enc_huff_encode (const unsigned char *src,
     adj = bits_used + (-bits_used & 7);     /* Round up to 8 */
     if (bits_used && p_dst + (adj >> 3) <= dst_end)
     {
-        bits <<= adj - bits_used;       /* Align to byte boundary */
-        bits |= ((1 << (adj - bits_used)) - 1);  /* EOF */
+        bits <<= -bits_used & 7;            /* Align to byte boundary */
+        bits |= ((1 << (-bits_used & 7)) - 1);  /* EOF */
         switch (adj >> 3)
         {                               /* Write out */
         case 8: *p_dst++ = bits >> 56;
