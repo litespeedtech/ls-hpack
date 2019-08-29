@@ -5653,7 +5653,7 @@ lshpack_enc_huff_encode (const unsigned char *src,
 {
     unsigned char *p_dst = dst;
     unsigned char *dst_end = p_dst + dst_len;
-    uint64_t bits = 0;
+    uint64_t bits;  /* OK not to initialize this variable */
     unsigned bits_used = 0, adj;
     struct encode_el cur_enc_code;
 

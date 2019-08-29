@@ -38,10 +38,6 @@ IF (CMAKE_C_COMPILER_ID STREQUAL GNU
         IF (HAS_NO_IMPLICIT_FALLTHROUGH)
             SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Wno-implicit-fallthrough")
         ENDIF()
-	IF (NOT CMAKE_BUILD_TYPE STREQUAL Release)
-	    # -Werror is used to force us to fix warnings early.
-	    SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Werror")
-	ENDIF()
         IF (PROFILE EQUAL 1)
             SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -g -pg")
         ENDIF()
