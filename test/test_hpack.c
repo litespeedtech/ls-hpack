@@ -1176,6 +1176,14 @@ test_huffman_encoding_corner_cases (void)
     s = lshpack_enc_enc_str(buf, 1, (unsigned char *) "a", 1000);
     assert(-1 == s);
     assert(0 == buf[1]);
+
+    memset(buf, 0, sizeof(buf));
+    s = lshpack_enc_enc_str(buf, 3, (unsigned char *) "zzz", 3);
+    assert(-1 == s);
+
+    memset(buf, 0, sizeof(buf));
+    s = lshpack_enc_enc_str(buf, 4, (unsigned char *) "zzz", 3);
+    assert(4 == s);
 }
 
 
