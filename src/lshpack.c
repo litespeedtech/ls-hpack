@@ -72106,7 +72106,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     uint16_t idx;
     int r;
 
-    buf = 0;
     avail_bits = 0;
     while (1)
     {
