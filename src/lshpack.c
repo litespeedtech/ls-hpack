@@ -5653,29 +5653,31 @@ lshpack_enc_huff_encode (const unsigned char *src,
 {
     unsigned char *p_dst = dst;
     unsigned char *dst_end = p_dst + dst_len;
-    uint64_t bits;  /* OK not to initialize this variable */
+    uintptr_t bits;  /* OK not to initialize this variable */
     unsigned bits_used = 0, adj;
     struct encode_el cur_enc_code;
 
     while (src != src_end)
     {
         cur_enc_code = encode_table[*src++];
-        if (bits_used + cur_enc_code.bits < 64)
+        if (bits_used + cur_enc_code.bits < sizeof(bits) * 8)
         {
             bits <<= cur_enc_code.bits;
             bits |= cur_enc_code.code;
             bits_used += cur_enc_code.bits;
             continue;
         }
-        else if (p_dst + 8 <= dst_end)
+        else if (p_dst + sizeof(bits) <= dst_end)
         {
-            bits <<= 64 - bits_used;
-            bits_used = cur_enc_code.bits - (64 - bits_used);
+            bits <<= sizeof(bits) * 8 - bits_used;
+            bits_used = cur_enc_code.bits - (sizeof(bits) * 8 - bits_used);
             bits |= cur_enc_code.code >> bits_used;
+#if UINTPTR_MAX == 18446744073709551615ull
             *p_dst++ = bits >> 56;
             *p_dst++ = bits >> 48;
             *p_dst++ = bits >> 40;
             *p_dst++ = bits >> 32;
+#endif
             *p_dst++ = bits >> 24;
             *p_dst++ = bits >> 16;
             *p_dst++ = bits >> 8;
@@ -5693,10 +5695,12 @@ lshpack_enc_huff_encode (const unsigned char *src,
         bits |= ((1 << (-bits_used & 7)) - 1);  /* EOF */
         switch (adj >> 3)
         {                               /* Write out */
+#if UINTPTR_MAX == 18446744073709551615ull
         case 8: *p_dst++ = bits >> 56;
         case 7: *p_dst++ = bits >> 48;
         case 6: *p_dst++ = bits >> 40;
         case 5: *p_dst++ = bits >> 32;
+#endif
         case 4: *p_dst++ = bits >> 24;
         case 3: *p_dst++ = bits >> 16;
         case 2: *p_dst++ = bits >> 8;
