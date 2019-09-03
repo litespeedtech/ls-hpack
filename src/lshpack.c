@@ -72155,25 +72155,23 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
 
         if (dst_end - dst >= (ptrdiff_t) (8 * sizeof(buf) / SHORTEST_CODE)
                                                             && avail_bits >= 16)
-            /* Fast path: don't check destination bounds; use the fact that all
-             * table entries below 0xFFFE are valid.
-             */
+        {
+            /* Fast path: don't check destination bounds */
             do
             {
                 idx = buf >> (avail_bits - 16);
-                if (idx < 0xFFFE)
-                {
-                    hdec = hdecs[idx];
-                    dst[0] = hdec.out[0];
-                    dst[1] = hdec.out[1];
-                    dst[2] = hdec.out[2];
-                    dst += hdec.lens & 3;
-                    avail_bits -= hdec.lens >> 2;
-                }
-                else
-                    goto slow_path;
+                hdec = hdecs[idx];
+                dst[0] = hdec.out[0];
+                dst[1] = hdec.out[1];
+                dst[2] = hdec.out[2];
+                dst += hdec.lens & 3;
+                avail_bits -= hdec.lens >> 2;
             }
-            while (avail_bits >= 16);
+            while (avail_bits >= 16 && hdec.lens);
+            if (avail_bits < 16)
+                continue;
+            goto slow_path;
+        }
         else
             while (avail_bits >= 16)
             {
