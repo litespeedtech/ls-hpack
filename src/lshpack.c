@@ -5670,7 +5670,8 @@ lshpack_enc_huff_encode (const unsigned char *src,
         else if (p_dst + 8 <= dst_end)
         {
             bits <<= 64 - bits_used;
-            bits |= cur_enc_code.code >> (cur_enc_code.bits - (64 - bits_used));
+            bits_used = cur_enc_code.bits - (64 - bits_used);
+            bits |= cur_enc_code.code >> bits_used;
             *p_dst++ = bits >> 56;
             *p_dst++ = bits >> 48;
             *p_dst++ = bits >> 40;
@@ -5679,8 +5680,6 @@ lshpack_enc_huff_encode (const unsigned char *src,
             *p_dst++ = bits >> 16;
             *p_dst++ = bits >> 8;
             *p_dst++ = bits;
-            bits_used += cur_enc_code.bits;
-            bits_used &= 64 - 1;
             bits = cur_enc_code.code;   /* OK not to clear high bits */
         }
         else
