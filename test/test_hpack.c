@@ -1388,6 +1388,27 @@ test_huff_dec_fallback (void)
 
 
 static void
+test_huff_dec_bad_eos (void)
+{
+    unsigned char input[] = { 0xce, 0x64, 0x97, 0x75, 0x65, 0x2c, 0x9f, };
+    int dec_sz;
+    unsigned char out[9];
+
+    /* First, check with good EOS */
+    dec_sz = lshpack_dec_huff_decode(input, (int) sizeof(input), out,
+                                                            (int) sizeof(out));
+    assert(9 == dec_sz);
+    assert(0 == strncmp((char *) out, "LiteSpeed", 9));
+
+    /* Now mangle EOS.  Error should be returned. */
+    input[ sizeof(input) - 1 ] &= ~1;
+    dec_sz = lshpack_dec_huff_decode(input, (int) sizeof(input), out,
+                                                            (int) sizeof(out));
+    assert(-1 == dec_sz);
+}
+
+
+static void
 test_hdec_static_idx_0 (void)
 {
     struct lshpack_dec dec;
@@ -1438,6 +1459,7 @@ main (int argc, char **argv)
     test_huff_dec_trailing_garbage(1);
     test_huff_dec_trailing_garbage(0);
     test_huff_dec_fallback();
+    test_huff_dec_bad_eos();
     test_hdec_static_idx_0();
 
     return 0;
