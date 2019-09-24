@@ -17,9 +17,11 @@
 int
 lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                                     unsigned char *dst, int dst_len);
+#if LS_HPACK_USE_LARGE_TABLES
 int
 lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
                                     unsigned char *dst, int dst_len);
+#endif
 int
 lshpack_enc_huff_encode (const unsigned char *src,
     const unsigned char *const src_end, unsigned char *const dst,
@@ -1307,9 +1309,11 @@ test_huff_dec_empty_string (void)
     int sz;
     unsigned char dst[0x10];
 
+#if LS_HPACK_USE_LARGE_TABLES
     sz = lshpack_dec_huff_decode_full((unsigned char *) "", 0,
                                                 dst, (int) sizeof(dst));
     assert(sz == 0);
+#endif
 
     sz = lshpack_dec_huff_decode((unsigned char *) "", 0,
                                                 dst, (int) sizeof(dst));
@@ -1335,9 +1339,11 @@ test_huff_dec_trailing_garbage (int full)
     unsigned char comp[0x100];
     char out[0x100];
 
+#if LS_HPACK_USE_LARGE_TABLES
     if (full)
         decode = lshpack_dec_huff_decode_full;
     else
+#endif
         decode = lshpack_dec_huff_decode;
 
     for (i = 0; i < sizeof(strings) / sizeof(strings[0]); ++i)
@@ -1387,6 +1393,7 @@ test_huff_dec_fallback (void)
 }
 
 
+#if LS_HPACK_USE_LARGE_TABLES
 static void
 test_huff_dec_bad_eos (void)
 {
@@ -1406,6 +1413,7 @@ test_huff_dec_bad_eos (void)
                                                             (int) sizeof(out));
     assert(-1 == dec_sz);
 }
+#endif
 
 
 static void
@@ -1459,7 +1467,9 @@ main (int argc, char **argv)
     test_huff_dec_trailing_garbage(1);
     test_huff_dec_trailing_garbage(0);
     test_huff_dec_fallback();
+#if LS_HPACK_USE_LARGE_TABLES
     test_huff_dec_bad_eos();
+#endif
     test_hdec_static_idx_0();
 
     return 0;

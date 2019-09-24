@@ -9,9 +9,15 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef LS_HPACK_USE_LARGE_TABLES
+#define LS_HPACK_USE_LARGE_TABLES 1
+#endif
+
+#if LS_HPACK_USE_LARGE_TABLES
 int
 lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
                                     unsigned char *dst, int dst_len);
+#endif
 
 int
 lshpack_dec_huff_decode (const unsigned char *src, int src_len,
@@ -34,9 +40,20 @@ main (int argc, char **argv)
     }
 
     if (strcasecmp(argv[3], "slow") == 0)
+#if LS_HPACK_USE_LARGE_TABLES
         decode = lshpack_dec_huff_decode_full;
-    else if (strcasecmp(argv[3], "fast") == 0)
+#else
         decode = lshpack_dec_huff_decode;
+#endif
+    else if (strcasecmp(argv[3], "fast") == 0)
+#if LS_HPACK_USE_LARGE_TABLES
+        decode = lshpack_dec_huff_decode;
+#else
+    {
+        fprintf(stderr, "support for fast decoder is compiled out\n");
+        exit(EXIT_FAILURE);
+    }
+#endif
     else
     {
         fprintf(stderr, "Mode `%s' is invalid.  Specify either `slow' or "
