@@ -509,6 +509,18 @@ lshpack_enc_enc_int (unsigned char *dst, unsigned char *const end,
 }
 
 
+/* This whole pragma business has to do with turning off uninitialized warnings.
+ * We do it for gcc and clang.  Other compilers get slightly slower code, where
+ * unnecessary initialization is performed.
+ */
+#if __GNUC__
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#if __clang__
+#pragma GCC diagnostic ignored "-Wunknown-warning-option"
+#endif
+#endif
+
+
 int
 lshpack_enc_huff_encode (const unsigned char *src,
     const unsigned char *const src_end, unsigned char *const dst, int dst_len)
@@ -518,6 +530,13 @@ lshpack_enc_huff_encode (const unsigned char *src,
     uintptr_t bits;  /* OK not to initialize this variable */
     unsigned bits_used = 0, adj;
     struct encode_el cur_enc_code;
+#if __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#else
+    bits = 0;
+#endif
 #if LS_HPACK_USE_LARGE_TABLES
     const struct henc *henc;
     uint16_t idx;
@@ -617,6 +636,9 @@ lshpack_enc_huff_encode (const unsigned char *src,
         return p_dst - dst;
     else
         return -1;
+#if __GNUC__
+#pragma GCC diagnostic pop
+#endif
 }
 
 
@@ -1464,11 +1486,19 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     unsigned char *const orig_dst = dst;
     const unsigned char *const src_end = src + src_len;
     unsigned char *const dst_end = dst + dst_len;
-    uintptr_t buf;
+    uintptr_t buf;      /* OK not to initialize the buffer */
     unsigned avail_bits, len;
     struct hdec hdec;
     uint16_t idx;
     int r;
+
+#if __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#else
+    buf = 0;
+#endif
 
     avail_bits = 0;
     while (1)
@@ -1612,6 +1642,9 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
         if (((1u << avail_bits) - 1) != (buf & ((1u << avail_bits) - 1)))
             return -1;  /* Not EOF as expected */
     }
+#if __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
   end:
     return dst - orig_dst;
@@ -1628,4 +1661,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     else
         return r;
 }
+#endif
+#if __GNUC__
+#pragma GCC diagnostic pop  /* -Wunknown-pragmas */
 #endif
