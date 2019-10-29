@@ -31,6 +31,10 @@ extern "C" {
 
 #include <stdint.h>
 
+#define LSHPACK_MAJOR_VERSION 1
+#define LSHPACK_MINOR_VERSION 0
+#define LSHPACK_PATCH_VERSION 0
+
 /** Maximum length is defined for convenience */
 #define LSHPACK_MAX_STRLEN UINT_MAX
 
