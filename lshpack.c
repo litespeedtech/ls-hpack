@@ -54,11 +54,10 @@ SOFTWARE.
 
 #define NAME_VAL(a, b) sizeof(a) - 1, sizeof(b) - 1, (a), (b)
 
-
 static const struct
 {
-    lsxpack_strlen_t  name_len;
-    lsxpack_strlen_t  val_len;
+    unsigned          name_len;
+    unsigned          val_len;
     const char       *name;
     const char       *val;
 }
@@ -214,7 +213,6 @@ lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val)
     return 0;
 }
 
-
 struct lshpack_double_enc_head
 {
     struct lshpack_enc_head by_name;
@@ -235,7 +233,6 @@ struct lshpack_enc_table_entry
     lsxpack_strlen_t                ete_val_len;
     char                            ete_buf[0];
 };
-
 
 #define ETE_NAME(ete) ((ete)->ete_buf)
 #define ETE_VALUE(ete) (&(ete)->ete_buf[(ete)->ete_name_len])
@@ -288,7 +285,6 @@ lshpack_enc_init (struct lshpack_enc *enc)
     enc->hpe_next_id      = ~0 - 3;
     enc->hpe_nbits        = nbits;
     enc->hpe_nelem        = 0;
-    
     return 0;
 }
 
@@ -1132,37 +1128,60 @@ lshpack_dec_cleanup (struct lshpack_dec *dec)
 }
 
 
+/* Maximum number of bytes required to encode a 32-bit integer */
+#define LSHPACK_UINT32_ENC_SZ 6
+
+
+/* Assumption: we have at least one byte to work with */
 #if !LS_HPACK_EMIT_TEST_CODE
 static
 #endif
        int
-lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,
-                                        unsigned prefix_bits, uint32_t *value)
+lshpack_dec_dec_int (const unsigned char **src_p, const unsigned char *src_end,
+                                        unsigned prefix_bits, uint32_t *value_p)
 {
-    uint32_t B, M;
-    uint8_t prefix_max = (1 << prefix_bits) - 1;
+    const unsigned char *const orig_src = *src_p;
+    const unsigned char *src;
+    unsigned prefix_max, M;
+    uint32_t val, B;
 
-    *value = (*(*src)++ & prefix_max);
+    src = *src_p;
 
-    if (*value < prefix_max)
+    prefix_max = (1 << prefix_bits) - 1;
+    val = *src++;
+    val &= prefix_max;
+
+    if (val < prefix_max)
+    {
+        *src_p = src;
+        *value_p = val;
         return 0;
+    }
 
-    /* To optimize the loop for the normal case, the overflow is checked
-     * outside the loop.  The decoder is limited to 28-bit integer values,
-     * which is far above limitations imposed by the APIs (16-bit integers).
-     */
     M = 0;
     do
     {
-        if ((*src) >= src_end)
+        if (src < src_end)
+        {
+            B = *src++;
+            val = val + ((B & 0x7f) << M);
+            M += 7;
+        }
+        else if (src - orig_src < LSHPACK_UINT32_ENC_SZ)
             return -1;
-        B = *(*src)++;
-        *value = *value + ((B & 0x7f) << M);
-        M += 7;
+        else
+            return -2;
     }
     while (B & 0x80);
 
-    return -(M > sizeof(*value) * 8);
+    if (M <= 28 || (M == 35 && src[-1] <= 0xF && val - (src[-1] << 28) < val))
+    {
+        *src_p = src;
+        *value_p = val;
+        return 0;
+    }
+    else
+        return -2;
 }
 
 
@@ -1692,7 +1711,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
          */
         hdec = hdecs[idx];
         len = hdec.lens & 3;
-        if ((hdec.lens >> 2) > avail_bits)
+        if (((unsigned) hdec.lens >> 2) > avail_bits)
             return -1;
         if (len && dst + len <= dst_end)
         {
