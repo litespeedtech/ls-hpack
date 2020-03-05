@@ -1,7 +1,7 @@
 #ifndef LITESPEED_HPACK_TEST_H
 #define LITESPEED_HPACK_TEST_H 1
 
-#define LSHPACK_XXH_SEED 20716
+#define LSHPACK_XXH_SEED 39378473
 
 struct enc_dyn_table_entry
 {
