@@ -233,14 +233,10 @@ lookup_static_table (const char *name, unsigned name_len,
                  const char *val, unsigned val_len, int *val_matched)
 {
     uint32_t name_hash, nameval_hash;
-    XXH32_state_t hash_state;
     unsigned id;
 
-    XXH32_reset(&hash_state, 0);
-    XXH32_update(&hash_state, name, name_len);
-    name_hash = XXH32_digest(&hash_state);
-    XXH32_update(&hash_state, val, val_len);
-    nameval_hash = XXH32_digest(&hash_state);
+    name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
+    nameval_hash = XXH32(val, val_len, name_hash);
 
     id = lshpack_enc_get_static_nameval(nameval_hash, name, name_len,
                                                             val, val_len);
@@ -732,7 +728,6 @@ test_hpack_self_enc_dec_test_firefox_error (void)
 {
     unsigned char respBuf[8192] = {0};
     unsigned char *respBufEnd;
-    XXH32_state_t hash_state;
     uint32_t name_hash, nameval_hash;
     // Hpack hpack;
     struct lshpack_enc henc;
@@ -760,13 +755,10 @@ test_hpack_self_enc_dec_test_firefox_error (void)
                 (char *)g_hpack_dyn_init_table_t[i].val,
                 g_hpack_dyn_init_table_t[i].val_len);
 
-        XXH32_reset(&hash_state, 0);
-        XXH32_update(&hash_state, g_hpack_dyn_init_table_t[i].name,
-                                g_hpack_dyn_init_table_t[i].name_len);
-        name_hash = XXH32_digest(&hash_state);
-        XXH32_update(&hash_state, g_hpack_dyn_init_table_t[i].val,
-                                g_hpack_dyn_init_table_t[i].val_len);
-        nameval_hash = XXH32_digest(&hash_state);
+        name_hash = XXH32(g_hpack_dyn_init_table_t[i].name,
+                    g_hpack_dyn_init_table_t[i].name_len, LSHPACK_XXH_SEED);
+        nameval_hash = XXH32(g_hpack_dyn_init_table_t[i].val,
+                            g_hpack_dyn_init_table_t[i].val_len, name_hash);
 
         lshpack_enc_push_entry(&henc,
                 name_hash, nameval_hash,
@@ -1098,10 +1090,7 @@ test_static_table_search_exhaustive (void)
                 g_HpackStaticTableTset[i].val_len,
                 &val_matched);
         assert(id == i + 1);
-        if (i >= 1 && i <= 15 && i != 14)
-            assert(val_matched == 1);
-        else
-            assert(val_matched == 0);
+        assert(val_matched == 1);
     }
 
     id = lookup_static_table((char *)":method", 7, (char *)"Get", 3,
