@@ -18,16 +18,14 @@ lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
 
 unsigned
 lshpack_enc_get_static_nameval (uint32_t nameval_hash, const char *name,
-        unsigned name_len, const char *val, unsigned val_len);
+        lsxpack_strlen_t name_len, const char *val, lsxpack_strlen_t val_len);
 
 int
-lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
-    uint32_t nameval_hash, const char *name, unsigned name_len,
-    const char *value, unsigned value_len);
+lshpack_enc_push_entry (struct lshpack_enc *, const struct lsxpack_header *);
 
 int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
-                     const unsigned char *str, unsigned str_len);
+                     const unsigned char *str, lsxpack_strlen_t str_len);
 
 typedef void * enc_iter_t;
 
@@ -42,10 +40,11 @@ lshpack_enc_iter_next (struct lshpack_enc *enc, void **iter,
 int
 lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,
                                         unsigned prefix_bits, uint32_t *value);
+
 int
-lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
-                        unsigned name_len, const char *val,
-                        unsigned val_len);
+lshpack_dec_push_entry (struct lshpack_dec *dec, unsigned name_idx,
+    const char *name, lsxpack_strlen_t name_len, const char *val,
+    lsxpack_strlen_t val_len);
 
 unsigned char *
 lshpack_enc_enc_int (unsigned char *dst, unsigned char *const end, uint32_t value,

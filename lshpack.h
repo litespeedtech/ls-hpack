@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2018 LiteSpeed Technologies Inc
+Copyright (c) 2018 - 2020 LiteSpeed Technologies Inc
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -29,21 +29,63 @@ SOFTWARE.
 extern "C" {
 #endif
 
+#include <limits.h>
 #include <stdint.h>
-#include "lsxpack_header.h"
+
+#ifndef LSXPACK_MAX_STRLEN
+#define LSXPACK_MAX_STRLEN UINT_MAX
+#endif
+
+#if UINT_MAX == 65535
+typedef uint16_t lsxpack_strlen_t;
+#elif UINT_MAX == 4294967295
+typedef uint32_t lsxpack_strlen_t;
+#elif UINT_MAX == 18446744073709551615ULL
+typedef uint64_t lsxpack_strlen_t;
+#else
+#error unexpected UINT_MAX
+#endif
+
+enum lsxpack_flag
+{
+    LSXPACK_HPACK_IDX       = 1 << 0,
+    LSXPACK_QPACK_IDX       = 1 << 1,
+    LSXPACK_APP_IDX         = 1 << 2,
+    LSXPACK_NAME_HASH       = 1 << 3,
+    LSXPACK_NAMEVAL_HASH    = 1 << 4,
+    LSXPACK_VAL_MATCHED     = 1 << 5,
+    LSXPACK_NEVER_INDEX     = 1 << 6,
+    /* TODO: qpack flags */
+};
 
 /**
- * Strings up to 65535 characters in length are supported.
+ * When header are decoded, it should be stored to @buf starting from @name_offset,
+ *    <name>: <value>\r\n
+ * So, it can be used directly as HTTP/1.1 header. there are 4 extra characters
+ * added.
+ *
+ * limitation: we currently does not support total header size > 64KB.
  */
-typedef uint16_t lshpack_strlen_t;
 
-/** Maximum length is defined for convenience */
-#define LSHPACK_MAX_STRLEN UINT16_MAX
+struct lsxpack_header
+{
+    char               *buf;          /* the buffer for headers */
+    uint32_t            name_hash;    /* hash value for name */
+    uint32_t            nameval_hash; /* hash value for name + value */
+    lsxpack_strlen_t    name_offset;  /* the offset for name in the buffer */
+    lsxpack_strlen_t    name_len;     /* the length of name */
+    lsxpack_strlen_t    val_offset;   /* the offset for value in the buffer */
+    lsxpack_strlen_t    val_len;      /* the length of value */
+    uint8_t             hpack_index;  /* HPACK static table index [1,61] */
+    uint8_t             qpack_index;  /* QPACK static table index [0,98] */
+    uint8_t             app_index;    /* APP header index (user-defined) */
+    enum lsxpack_flag   flags:8;      /* Bitmask of lsxpack_flag */
+};
+
+typedef struct lsxpack_header lsxpack_header_t;
 
 struct lshpack_enc;
 struct lshpack_dec;
-struct ls_http_header;
-typedef struct ls_http_header lshpack_header_t;
 
 enum lshpack_static_hdr_idx
 {
@@ -125,28 +167,8 @@ lshpack_enc_init (struct lshpack_enc *);
 void
 lshpack_enc_cleanup (struct lshpack_enc *);
 
-/**
- * @brief Encode one name/value pair
- *
- * @param[in,out] henc - A pointer to a valid HPACK API struct
- * @param[out] dst - A pointer to destination buffer
- * @param[out] dst_end - A pointer to end of destination buffer
- * @param[in] name - A pointer to the item name
- * @param[in] name_len - The item name's length
- * @param[in] value - A pointer to the item value
- * @param[in] value_len - The item value's length
- * @param[in] indexed_type - 0, Add, 1,: without, 2: never
- *
- * @return The (possibly advanced) dst pointer.  If the destination
- * pointer was not advanced, an error must have occurred.
- */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-                    unsigned char *dst_end, int hpack_idx,
-                    const lshpack_header_t *header, int indexed_type);
-
-unsigned char *
-lshpack_encode (struct lshpack_enc *henc, unsigned char *dst,
                 unsigned char *dst_end, lsxpack_header_t *hdr);
 
 void
@@ -178,20 +200,8 @@ lshpack_dec_init (struct lshpack_dec *);
 void
 lshpack_dec_cleanup (struct lshpack_dec *);
 
-/*
- * Returns 0 on success, a negative value on failure.
- *
- * If 0 is returned, `src' is advanced.  Calling with a zero-length input
- * buffer results in an error.
- */
 int
 lshpack_dec_decode (struct lshpack_dec *dec,
-    const unsigned char **src, const unsigned char *src_end,
-    char *dst, char *const dst_end, lshpack_strlen_t *name_len,
-    lshpack_strlen_t *val_len, uint32_t *name_idx);
-
-int
-lshpack_decode (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
     lsxpack_header_t *output);
 
@@ -257,8 +267,7 @@ struct lshpack_dec
 };
 
 unsigned
-lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
-                            const char *val, lshpack_strlen_t val_len);
+lshpack_enc_get_stx_tab_id (struct lsxpack_header *);
 
 #ifdef __cplusplus
 }
