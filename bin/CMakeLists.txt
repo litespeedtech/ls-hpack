@@ -12,3 +12,5 @@ add_executable(huff-encode huff-encode.c ../deps/xxhash/xxhash.c)
 target_link_libraries(huff-encode PRIVATE ls-hpack)
 
 add_executable(calc-xxh calc-xxh.c ../deps/xxhash/xxhash.c)
+
+add_executable(find-xxh find-xxh.c ../deps/xxhash/xxhash.c)
