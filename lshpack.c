@@ -1609,7 +1609,7 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
          */
         hdec = hdecs[idx];
         len = hdec.lens & 3;
-        if ((hdec.lens >> 2) > avail_bits)
+        if (((unsigned) hdec.lens >> 2) > avail_bits)
             return -1;
         if (len && dst + len <= dst_end)
         {
