@@ -330,33 +330,41 @@ lshpack_enc_hist_used (const struct lshpack_enc *enc)
     return (enc->hpe_flags & LSHPACK_ENC_USE_HIST) != 0;
 }
 
-
-#define LSHPACK_XXH_SEED 0
-#define XXH_NAMEVAL_WIDTH 9
-#define XXH_NAMEVAL_SHIFT 2
-#define XXH_NAME_WIDTH 9
-#define XXH_NAME_SHIFT 9
-
-static const unsigned char nameval2id[ 1 << XXH_NAMEVAL_WIDTH ] =
-{
-    [475]  =  2,   [361]  =  3,   [149]  =  4,   [219]  =  5,   [511]  =  6,
-    [299]  =  7,   [298]  =  8,   [19]   =  9,   [370]  =  10,  [95]   =  11,
-    [158]  =  12,  [281]  = 13,   [423]  =  14,  [501]  =  16,
-};
-
+#define LSHPACK_XXH_SEED 20716
+#define XXH_NAME_WIDTH 10
+#define XXH_NAME_SHIFT 0
 static const unsigned char name2id[ 1 << XXH_NAME_WIDTH ] =
 {
-    [215]  =  1,   [207]  =  2,   [286]  =  4,   [321]  =  6,   [289]  =  8,
-    [63]   =  15,  [122]  =  16,  [209]  =  17,  [194]  =  18,  [331]  =  19,
-    [273]  =  20,  [278]  =  21,  [431]  =  22,  [232]  =  23,  [182]  =  24,
-    [483]  =  25,  [59]   =  26,  [52]   =  27,  [422]  =  28,  [62]   =  29,
-    [381]  =  30,  [233]  =  31,  [110]  =  32,  [15]   =  33,  [85]   =  34,
-    [452]  =  35,  [28]   =  36,  [414]  =  37,  [82]   =  38,  [345]  =  39,
-    [467]  =  40,  [501]  =  41,  [299]  =  42,  [168]  =  43,  [326]  =  44,
-    [199]  =  45,  [360]  =  46,  [36]   =  47,  [349]  =  48,  [347]  =  49,
-    [126]  =  50,  [208]  =  51,  [416]  =  52,  [373]  =  53,  [477]  =  54,
-    [33]   =  55,  [316]  =  56,  [156]  =  57,  [386]  =  58,  [116]  =  59,
-    [450]  =  60,  [297]  =  61,
+    [488]  =  1,   [874]   =  2,   [847]  =  4,   [240]  =  6,   [517]  =  8,
+    [779]  =  15,  [28]    =  16,  [844]  =  17,  [743]  =  18,  [16]   =  19,
+    [583]  =  20,  [231]   =  21,  [10]   =  22,  [935]  =  23,  [370]  =  24,
+    [401]  =  25,  [764]   =  26,  [531]  =  27,  [927]  =  28,  [766]  =  29,
+    [214]  =  30,  [1010]  =  31,  [198]  =  32,  [340]  =  33,  [431]  =  34,
+    [782]  =  35,  [165]   =  36,  [312]  =  37,  [801]  =  38,  [440]  =  39,
+    [164]  =  40,  [845]   =  41,  [305]  =  42,  [873]  =  43,  [362]  =  44,
+    [749]  =  45,  [977]   =  46,  [572]  =  47,  [529]  =  48,  [332]  =  49,
+    [262]  =  50,  [922]   =  51,  [434]  =  52,  [679]  =  53,  [200]  =  54,
+    [537]  =  55,  [461]   =  56,  [574]  =  57,  [323]  =  58,  [289]  =  59,
+    [952]  =  60,  [386]   =  61,
+};
+
+#define XXH_NAMEVAL_WIDTH 10
+#define XXH_NAMEVAL_SHIFT 0
+static const unsigned char nameval2id[ 1 << XXH_NAMEVAL_WIDTH ] =
+{
+    [651]  =  1,   [661]   =  2,   [453]  =  3,   [782]  =  4,   [613]  =  5,
+    [135]  =  6,   [376]   =  7,   [717]  =  8,   [292]  =  9,   [616]  =  10,
+    [777]  =  11,  [783]   =  12,  [92]   =  13,  [217]  =  14,  [692]  =  15,
+    [517]  =  16,  [1004]  =  17,  [1]    =  18,  [385]  =  19,  [953]  =  20,
+    [141]  =  21,  [906]   =  22,  [357]  =  23,  [468]  =  24,  [152]  =  25,
+    [864]  =  26,  [936]   =  27,  [960]  =  28,  [514]  =  29,  [73]   =  30,
+    [200]  =  31,  [529]   =  32,  [46]   =  33,  [991]  =  34,  [823]  =  35,
+    [846]  =  36,  [738]   =  37,  [728]  =  38,  [881]  =  39,  [396]  =  40,
+    [989]  =  41,  [865]   =  42,  [667]  =  43,  [459]  =  44,  [237]  =  45,
+    [186]  =  46,  [698]   =  47,  [440]  =  48,  [431]  =  49,  [138]  =  50,
+    [460]  =  51,  [216]   =  52,  [271]  =  53,  [941]  =  54,  [272]  =  55,
+    [374]  =  56,  [712]   =  57,  [685]  =  58,  [37]   =  59,  [928]  =  60,
+    [571]  =  61,
 };
 
 //not find return 0, otherwise return the index
@@ -919,18 +927,14 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     uint32_t name_hash, nameval_hash;
     int val_matched, rc;
     unsigned table_id;
-    XXH32_state_t hash_state;
 
     assert(indexed_type >= 0 && indexed_type <= 2);
 
     if (dst_end <= dst)
         return dst_org;
 
-    XXH32_reset(&hash_state, LSHPACK_XXH_SEED);
-    XXH32_update(&hash_state, name, name_len);
-    name_hash = XXH32_digest(&hash_state);
-    XXH32_update(&hash_state, value, value_len);
-    nameval_hash = XXH32_digest(&hash_state);
+    name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
+    nameval_hash = XXH32(value, value_len, name_hash);
 
     if (enc->hpe_hist_buf)
     {
