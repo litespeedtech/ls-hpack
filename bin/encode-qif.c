@@ -212,6 +212,7 @@ main (int argc, char **argv)
         qif = nlnl + 2;
     }
 
+    lsxpack_header_t hdr;
     for (n = 0; n < n_iters; ++n)
     {
         if (0 != lshpack_enc_init(&encoder))
@@ -226,9 +227,9 @@ main (int argc, char **argv)
             for (i = 0; i < hset->n_headers; ++i)
             {
                 header = &hset->headers[i];
-                s = lshpack_enc_encode(&encoder, buf, buf + sizeof(buf),
-                    header->name, header->name_len, header->val,
-                    header->val_len, 0);
+                lsxpack_header_set_ptr(&hdr, header->name, header->name_len,
+                                       header->val, header->val_len);
+                s = lshpack_enc_encode2(&encoder, buf, buf + sizeof(buf), &hdr);
                 if (s <= buf)
                 {
                     fprintf(stderr, "cannot encode\n");
