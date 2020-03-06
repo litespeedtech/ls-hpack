@@ -126,6 +126,25 @@ static_table[HPACK_STATIC_TABLE_SIZE] =
     { NAME_VAL("www-authenticate",              "") }
 };
 
+
+static const uint32_t static_table_name_hash[HPACK_STATIC_TABLE_SIZE] =
+{
+    2291248681U,  2986188533U,  2986188533U,  682507278U,   682507278U,
+    367166221U,   367166221U,   2654880352U,  2654880352U,  2654880352U,
+    2654880352U,  2654880352U,  2654880352U,  2654880352U,  3524820720U,
+    933295571U,   813015558U,   2455864366U,  691181430U,   242361332U,
+    3834784808U,  1449090918U,  670945460U,   948268347U,   3892037397U,
+    2390783832U,  10250307U,    3048951200U,  1992850710U,  717159389U,
+    3971600902U,  361291225U,   3119783934U,  3405294591U,  2067499073U,
+    1871984943U,  2214542492U,  4061963548U,  3058873016U,  1673242212U,
+    177203806U,   3851048949U,  3204010285U,  4028795988U,  1319210624U,
+    3083522210U,  1704740942U,  284081010U,   3557734150U,  80280704U,
+    2330042822U,  4174856472U,  3865504522U,  385071982U,   2287223314U,
+    3366877595U,  3850975681U,  1897333990U,  3090999634U,  1739293753U,
+    655250052U,
+};
+
+
 #define lshpack_arr_init(a) do {                                        \
     memset((a), 0, sizeof(*(a)));                                       \
 } while (0)
@@ -419,6 +438,86 @@ lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
 }
 
 
+static unsigned
+lookup_static_name2 (const struct lsxpack_header *input)
+{
+    unsigned i;
+
+    i = (input->name_hash >> XXH_NAME_SHIFT) & ((1 << XXH_NAME_WIDTH) - 1);
+    if (name2id[i])
+    {
+        i = name2id[i] - 1;
+        if (static_table[i].name_len == input->name_len
+            && memcmp(input->buf + input->name_offset, static_table[i].name,
+                      input->name_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    return LSHPACK_HDR_UNKNOWN;
+}
+
+
+static inline void
+lshpack_enc_update_hash(struct lsxpack_header *input)
+{
+    if (!(input->flags & LSXPACK_NAME_HASH))
+        input->name_hash = XXH32(input->buf + input->name_offset,
+                                 input->name_len, LSHPACK_XXH_SEED);
+    else
+        assert(input->name_hash == XXH32(input->buf + input->name_offset,
+                                         input->name_len, LSHPACK_XXH_SEED));
+
+    if (!(input->flags & LSXPACK_NAMEVAL_HASH))
+        input->nameval_hash = XXH32(input->buf + input->val_offset,
+                                    input->val_len, input->name_hash);
+    else
+        assert(input->nameval_hash == XXH32(input->buf + input->val_offset,
+                                            input->val_len, input->name_hash));
+
+    input->flags |= (LSXPACK_NAME_HASH | LSXPACK_NAMEVAL_HASH);
+}
+
+
+unsigned
+lshpack_enc_get_stx_tab_id2 (struct lsxpack_header *input)
+{
+    unsigned i;
+
+    lshpack_enc_update_hash(input);
+
+    i = (input->nameval_hash >> XXH_NAMEVAL_SHIFT) & ((1 << XXH_NAMEVAL_WIDTH) - 1);
+    if (nameval2id[i])
+    {
+        i = nameval2id[i] - 1;
+        if (static_table[i].name_len == input->name_len
+            && static_table[i].val_len == input->val_len
+            && memcmp(input->buf + input->name_offset, static_table[i].name,
+                      input->name_len) == 0
+            && memcmp(input->buf + input->val_offset, static_table[i].val,
+                      input->val_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    i = (input->name_hash >> XXH_NAME_SHIFT) & ((1 << XXH_NAME_WIDTH) - 1);
+    if (name2id[i])
+    {
+        i = name2id[i] - 1;
+        if (static_table[i].name_len == input->name_len
+            && memcmp(input->buf + input->name_offset, static_table[i].name,
+                      input->name_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    return 0;
+}
+
+
 /* Given a dynamic entry, return its table ID */
 static unsigned
 henc_calc_table_id (const struct lshpack_enc *enc,
@@ -427,6 +526,28 @@ henc_calc_table_id (const struct lshpack_enc *enc,
     return HPACK_STATIC_TABLE_SIZE
          + (enc->hpe_next_id - entry->ete_id)
     ;
+}
+
+
+static unsigned
+lookup_static_nameval2 (const struct lsxpack_header *input)
+{
+    unsigned i;
+
+    i = (input->nameval_hash >> XXH_NAMEVAL_SHIFT) & ((1 << XXH_NAMEVAL_WIDTH) - 1);
+    if (nameval2id[i])
+    {
+        i = nameval2id[i] - 1;
+        if (static_table[i].name_len == input->name_len
+            && static_table[i].val_len == input->val_len
+            && memcmp(input->buf + input->name_offset, static_table[i].name, input->name_len) == 0
+            && memcmp(input->buf + input->val_offset, static_table[i].val, input->val_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    return LSHPACK_HDR_UNKNOWN;
 }
 
 
@@ -476,6 +597,88 @@ henc_find_table_id (struct lshpack_enc *enc, uint32_t name_hash,
             0 == memcmp(name, ETE_NAME(entry), name_len))
         {
             *val_matched = 0;
+            return henc_calc_table_id(enc, entry);
+        }
+
+    return 0;
+}
+
+
+static unsigned
+henc_find_table_id2 (struct lshpack_enc *enc, lsxpack_header_t *input)
+{
+    struct lshpack_enc_table_entry *entry;
+    unsigned buckno, id;
+    const char *val_ptr = input->buf + input->val_offset;
+    const char *name_ptr = input->buf + input->name_offset;
+    /* First, look for a match in the static table: */
+    if (input->flags & LSXPACK_HPACK_IDX)
+    {
+        assert(input->hpack_index == lshpack_enc_get_stx_tab_id2(input));
+        id = input->hpack_index - 1;
+        if (id <= LSHPACK_HDR_ACCEPT_ENCODING)
+        {
+            if (static_table[id].val_len == input->val_len
+                && memcmp(val_ptr, static_table[id].val,
+                          input->val_len) == 0)
+            {
+                input->flags |= LSXPACK_VAL_MATCHED;
+                return input->hpack_index;
+            }
+        }
+        if (!(input->flags & LSXPACK_NAME_HASH))
+            input->name_hash = static_table_name_hash[input->hpack_index];
+        else
+            assert(input->name_hash == static_table_name_hash[input->hpack_index]);
+        if (!(input->flags & LSXPACK_NAMEVAL_HASH))
+            input->nameval_hash = XXH32(val_ptr, input->val_len,
+                                        input->name_hash);
+        else
+            assert(input->nameval_hash == XXH32(val_ptr, input->val_len,
+                                                input->name_hash));
+        input->flags |= (LSXPACK_NAME_HASH | LSXPACK_NAMEVAL_HASH);
+    }
+    else
+    {
+        lshpack_enc_update_hash(input);
+        input->hpack_index = lookup_static_nameval2(input);
+        if (input->hpack_index != LSHPACK_HDR_UNKNOWN)
+        {
+            input->flags |= LSXPACK_VAL_MATCHED;
+            return input->hpack_index;
+        }
+    }
+
+    /* Search by name and value: */
+    buckno = BUCKNO(enc->hpe_nbits, input->nameval_hash);
+    STAILQ_FOREACH(entry, &enc->hpe_buckets[buckno].by_nameval,
+                                                        ete_next_nameval)
+        if (input->nameval_hash == entry->ete_nameval_hash &&
+            input->name_len == entry->ete_name_len &&
+            input->val_len == entry->ete_val_len &&
+            0 == memcmp(name_ptr, ETE_NAME(entry), input->name_len) &&
+            0 == memcmp(val_ptr, ETE_VALUE(entry), input->val_len))
+        {
+            input->flags |= LSXPACK_VAL_MATCHED;
+            return henc_calc_table_id(enc, entry);
+        }
+
+    /* Name/value match is not found, look for header: */
+    input->hpack_index = lookup_static_name2(input);
+    if (input->hpack_index != LSHPACK_HDR_UNKNOWN)
+    {
+        input->flags &= ~LSXPACK_VAL_MATCHED;
+        return input->hpack_index;
+    }
+
+    /* Search by name only: */
+    buckno = BUCKNO(enc->hpe_nbits, input->name_hash);
+    STAILQ_FOREACH(entry, &enc->hpe_buckets[buckno].by_name, ete_next_name)
+        if (input->name_hash == entry->ete_name_hash &&
+            input->name_len == entry->ete_name_len &&
+            0 == memcmp(name_ptr, ETE_NAME(entry), input->name_len))
+        {
+            input->flags &= ~LSXPACK_VAL_MATCHED;
             return henc_calc_table_id(enc, entry);
         }
 
@@ -850,6 +1053,52 @@ lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
 }
 
 
+#if !LS_HPACK_EMIT_TEST_CODE
+static
+#endif
+       int
+lshpack_enc_push_entry2 (struct lshpack_enc *enc,
+                        const struct lsxpack_header *input)
+{
+    unsigned buckno;
+    struct lshpack_enc_table_entry *entry;
+    size_t size;
+
+    if (enc->hpe_nelem >= N_BUCKETS(enc->hpe_nbits) / 2 &&
+                                                0 != henc_grow_tables(enc))
+        return -1;
+
+    size = sizeof(*entry) + input->name_len + input->val_len;
+    entry = malloc(size);
+    if (!entry)
+        return -1;
+
+    entry->ete_name_hash = input->name_hash;
+    entry->ete_nameval_hash = input->nameval_hash;
+    entry->ete_name_len = input->name_len;
+    entry->ete_val_len = input->val_len;
+    entry->ete_id = enc->hpe_next_id++;
+    memcpy(ETE_NAME(entry), input->name_ptr, input->name_len);
+    memcpy(ETE_VALUE(entry), input->buf + input->val_offset, input->val_len);
+
+    STAILQ_INSERT_TAIL(&enc->hpe_all_entries, entry, ete_next_all);
+    buckno = BUCKNO(enc->hpe_nbits, input->nameval_hash);
+    STAILQ_INSERT_TAIL(&enc->hpe_buckets[buckno].by_nameval, entry,
+                                                        ete_next_nameval);
+    if (input->hpack_index == LSHPACK_HDR_UNKNOWN)
+    {
+        buckno = BUCKNO(enc->hpe_nbits, input->name_hash);
+        STAILQ_INSERT_TAIL(&enc->hpe_buckets[buckno].by_name, entry,
+                                                            ete_next_name);
+    }
+    enc->hpe_cur_capacity += DYNAMIC_ENTRY_OVERHEAD + input->name_len
+                             + input->val_len;
+    ++enc->hpe_nelem;
+    henc_remove_overflow_entries(enc);
+    return 0;
+}
+
+
 static void
 henc_resize_history (struct lshpack_enc *enc)
 {
@@ -987,6 +1236,81 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     {
         rc = lshpack_enc_push_entry(enc, name_hash, nameval_hash, name,
                                                 name_len, value, value_len);
+        if (rc != 0)
+            return dst_org; //Failed to enc this header, return unchanged ptr.
+    }
+
+    return dst;
+}
+
+
+unsigned char *
+lshpack_enc_encode2 (struct lshpack_enc *enc, unsigned char *dst,
+        unsigned char *dst_end, lsxpack_header_t *input)
+{
+    //indexed_type: 0, Add, 1,: without, 2: never
+    static const char indexed_prefix_number[] = {0x40, 0x00, 0x10};
+    unsigned char *const dst_org = dst;
+    int rc;
+    unsigned table_id;
+    int indexed_type = 0;
+
+    if (dst_end <= dst)
+        return dst_org;
+
+    if (input->flags & LSXPACK_NEVER_INDEX)
+        indexed_type = 2;
+
+    table_id = henc_find_table_id2(enc, input);
+
+    if (enc->hpe_hist_buf)
+    {
+        rc = henc_hist_add(enc, input->nameval_hash);
+        if (!rc && enc->hpe_hist_wrapped && indexed_type == 0)
+            indexed_type = 1;
+    }
+
+    if (table_id > 0)
+    {
+        if (input->flags & LSXPACK_VAL_MATCHED)
+        {
+            *dst = 0x80;
+            dst = lshpack_enc_enc_int(dst, dst_end, table_id, 7);
+            /* No need to check return value: we pass it up as-is because
+             * the behavior is the same.
+             */
+            return dst;
+        }
+        else
+        {
+            *dst = indexed_prefix_number[indexed_type];
+            dst = lshpack_enc_enc_int(dst, dst_end, table_id,
+                                            ((indexed_type == 0) ? 6 : 4));
+            if (dst == dst_org)
+                return dst_org;
+        }
+    }
+    else
+    {
+        *dst++ = indexed_prefix_number[indexed_type];
+        rc = lshpack_enc_enc_str(dst, dst_end - dst,
+                                 (const unsigned char *)input->buf + input->name_offset,
+                                 input->name_len);
+        if (rc < 0)
+            return dst_org; //Failed to enc this header, return unchanged ptr.
+        dst += rc;
+    }
+
+    rc = lshpack_enc_enc_str(dst, dst_end - dst,
+                             (const unsigned char *)input->buf + input->val_offset,
+                             input->val_len);
+    if (rc < 0)
+        return dst_org; //Failed to enc this header, return unchanged ptr.
+    dst += rc;
+
+    if (indexed_type == 0)
+    {
+        rc = lshpack_enc_push_entry2(enc, input);
         if (rc != 0)
             return dst_org; //Failed to enc this header, return unchanged ptr.
     }
@@ -1503,7 +1827,7 @@ enum
 
 
 int
-lshpack_decode (struct lshpack_dec *dec,
+lshpack_dec_decode2 (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
     struct lsxpack_header *output)
 {

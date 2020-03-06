@@ -37,10 +37,10 @@ extern "C" {
 #define LSHPACK_MINOR_VERSION 0
 #define LSHPACK_PATCH_VERSION 0
 
+#define lshpack_strlen_t lsxpack_strlen_t
+
 struct lshpack_enc;
 struct lshpack_dec;
-struct lsxpack_header;
-
 
 enum lshpack_static_hdr_idx
 {
@@ -141,6 +141,10 @@ unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
     unsigned char *dst_end, const char *name, unsigned name_len,
     const char *value, unsigned value_len, int indexed_type);
+
+unsigned char *
+lshpack_enc_encode2 (struct lshpack_enc *henc, unsigned char *dst,
+                unsigned char *dst_end, lsxpack_header_t *hdr);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
