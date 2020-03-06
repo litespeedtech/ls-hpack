@@ -1474,6 +1474,197 @@ lshpack_dec_decode (struct lshpack_dec *dec,
 }
 
 
+static int
+lshpack_dec_copy_value (struct lsxpack_header *output, char *dest,
+                        const char *val, unsigned val_len)
+{
+    if (val_len + 2 > (unsigned)output->val_len)
+        return -1;
+    output->val_offset = output->name_offset + output->name_len + 2;
+    assert(dest == output->buf + output->val_offset);
+    output->val_len = val_len;
+    memcpy(dest, val, output->val_len);
+    dest += output->val_len;
+    *dest++ = '\r';
+    *dest++ = '\n';
+    return 0;
+}
+
+enum
+{
+    LSHPACK_ADD_INDEX = 0,
+    LSHPACK_NO_INDEX  = 1,
+    LSHPACK_NEVER_INDEX = 2,
+    LSHPACK_VAL_INDEX = 3,
+};
+
+
+int
+lshpack_decode (struct lshpack_dec *dec,
+    const unsigned char **src, const unsigned char *src_end,
+    struct lsxpack_header *output)
+{
+    struct dec_table_entry *entry;
+    uint32_t index, new_capacity;
+    int indexed_type, len;
+
+    if ((*src) == src_end)
+        return -1;
+
+    while ((*(*src) & 0xe0) == 0x20)    //001 xxxxx
+    {
+        if (0 != lshpack_dec_dec_int(src, src_end, 5, &new_capacity))
+            return -1;
+        if (new_capacity > dec->hpd_max_capacity)
+            return -1;
+        hdec_update_max_capacity(dec, new_capacity);
+        if (*src == src_end)
+            return -1;
+    }
+
+    /* lshpack_dec_dec_int() sets `index' and advances `src'.  If we do not
+     * call it, we set `index' and advance `src' ourselves:
+     */
+    if (*(*src) & 0x80) //1 xxxxxxx
+    {
+        if (0 != lshpack_dec_dec_int(src, src_end, 7, &index))
+            return -1;
+        if (index == 0)
+            return -1;
+        indexed_type = LSHPACK_VAL_INDEX; //need to parse value
+    }
+    else if (*(*src) > 0x40) //01 xxxxxx
+    {
+        if (0 != lshpack_dec_dec_int(src, src_end, 6, &index))
+            return -1;
+
+        indexed_type = LSHPACK_ADD_INDEX;
+    }
+    else if (*(*src) == 0x40) //custmized //0100 0000
+    {
+        indexed_type = LSHPACK_ADD_INDEX;
+        index = LSHPACK_HDR_UNKNOWN;
+        ++(*src);
+    }
+
+    //Never indexed
+    else if (*(*src) == 0x10)  //00010000
+    {
+        indexed_type = LSHPACK_NEVER_INDEX;
+        output->flags |= LSXPACK_NEVER_INDEX;
+        index = LSHPACK_HDR_UNKNOWN;
+        ++(*src);
+    }
+    else if ((*(*src) & 0xf0) == 0x10)  //0001 xxxx
+    {
+        if (0 != lshpack_dec_dec_int(src, src_end, 4, &index))
+            return -1;
+
+        indexed_type = LSHPACK_NEVER_INDEX;
+        output->flags |= LSXPACK_NEVER_INDEX;
+    }
+
+    //without indexed
+    else if (*(*src) == 0x00)  //0000 0000
+    {
+        indexed_type = LSHPACK_NO_INDEX;
+        index = LSHPACK_HDR_UNKNOWN;
+        ++(*src);
+    }
+    else // 0000 xxxx
+    {
+        if (0 != lshpack_dec_dec_int(src, src_end, 4, &index))
+            return -1;
+
+        indexed_type = LSHPACK_NO_INDEX;
+    }
+    if (index != LSHPACK_HDR_UNKNOWN && index <= LSHPACK_HDR_WWW_AUTHENTICATE)
+    {
+        output->hpack_index = index;
+        output->flags |= LSXPACK_HPACK_IDX;
+    }
+
+    char *name = output->buf + output->name_offset;
+    if (index > 0)
+    {
+        if (index <= HPACK_STATIC_TABLE_SIZE) //static table
+        {
+            if (static_table[index - 1].name_len + 2 > output->val_len)
+                return -1;
+            output->val_len -= static_table[index - 1].name_len + 2;
+            output->name_len = static_table[index - 1].name_len;
+            memcpy(name, static_table[index - 1].name, output->name_len);
+            name += output->name_len;
+            *name++ = ':';
+            *name++ = ' ';
+
+            if (indexed_type == LSHPACK_VAL_INDEX)
+                return lshpack_dec_copy_value(output, name,
+                                              static_table[index - 1].val,
+                                              static_table[index - 1].val_len);
+        }
+        else
+        {
+            entry = hdec_get_table_entry(dec, index);
+            if (entry == NULL)
+                return -1;
+            if (entry->dte_name_len + 2 > output->val_len)
+                return -1;
+
+            output->val_len -= entry->dte_name_len + 2;
+            output->name_len = entry->dte_name_len;
+            memcpy(name, DTE_NAME(entry), output->name_len);
+            name += output->name_len;
+            *name++ = ':';
+            *name++ = ' ';
+
+            if (entry->dte_name_idx)
+                output->hpack_index = index;
+            else
+                output->hpack_index = LSHPACK_HDR_UNKNOWN;
+            output->flags |= LSXPACK_HPACK_IDX;
+
+            if (indexed_type == LSHPACK_VAL_INDEX)
+                return lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
+                                              entry->dte_val_len);
+        }
+    }
+    else
+    {
+        len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
+        if (len < 0)
+            return len; //error
+        if (len > UINT16_MAX)
+            return -2;
+        output->name_len = len;
+        name += output->name_len;
+        *name++ = ':';
+        *name++ = ' ';
+        output->val_len -= len + 2;
+    }
+
+    len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
+    if (len < 0)
+        return len; //error
+    if (len > UINT16_MAX)
+        return -2;
+    output->val_offset = output->name_offset + output->name_len + 2;
+    output->val_len = len;
+    memcpy(name + len, "\r\n", 2);
+
+    if (indexed_type == LSHPACK_ADD_INDEX)
+    {
+        if (index > HPACK_STATIC_TABLE_SIZE)
+            index = 0;
+        if (0 != lshpack_dec_push_entry(dec, index, name - output->name_len - 2,
+                            output->name_len, name , output->val_len))
+            return -1;  //error
+    }
+
+    return 0;
+}
+
+
 #if LS_HPACK_USE_LARGE_TABLES
 #define SHORTEST_CODE 5
 

@@ -29,17 +29,16 @@ SOFTWARE.
 extern "C" {
 #endif
 
+#include <limits.h>
 #include <stdint.h>
 
-#define LSHPACK_MAJOR_VERSION 1
-#define LSHPACK_MINOR_VERSION 3
-#define LSHPACK_PATCH_VERSION 1
-
-/** Maximum length is defined for convenience */
-#define LSHPACK_MAX_STRLEN UINT_MAX
+#define LSHPACK_MAJOR_VERSION 2
+#define LSHPACK_MINOR_VERSION 0
+#define LSHPACK_PATCH_VERSION 0
 
 struct lshpack_enc;
 struct lshpack_dec;
+struct lsxpack_header;
 
 /**
  * Initialization routine allocates memory.  -1 is returned if memory
@@ -115,6 +114,14 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     char *dst, char *const dst_end, unsigned *name_len,
     unsigned *val_len);
 
+/*
+ * Return value and `src' behavior same as in lshpack_dec_decode()
+ */
+int
+lshpack_dec_decode2 (struct lshpack_dec *dec,
+    const unsigned char **src, const unsigned char *src_end,
+    struct lsxpack_header *output);
+
 void
 lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
 
@@ -174,9 +181,6 @@ struct lshpack_dec
     unsigned           hpd_cur_capacity;
     struct lshpack_arr hpd_dyn_table;
 };
-
-/* Used for compatibility: this typedef is deprecated */
-typedef unsigned lshpack_strlen_t;
 
 #ifdef __cplusplus
 }
