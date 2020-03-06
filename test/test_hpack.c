@@ -749,7 +749,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
         if (staticTableIndex <= 0)
             printf("Error, not in static table. \n");
 
-        lshpack_dec_push_entry(&hdec,
+        lshpack_dec_push_entry(&hdec, 0,
                 (char *)g_hpack_dyn_init_table_t[i].name,
                 g_hpack_dyn_init_table_t[i].name_len,
                 (char *)g_hpack_dyn_init_table_t[i].val,

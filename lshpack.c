@@ -1040,6 +1040,7 @@ struct dec_table_entry
 {
     unsigned    dte_name_len;
     unsigned    dte_val_len;
+    uint8_t     dte_name_idx;
     char        dte_buf[0];     /* Contains both name and value */
 };
 
@@ -1148,6 +1149,7 @@ hdec_drop_oldest_entry (struct lshpack_dec *dec)
     entry = (void *) lshpack_arr_shift(&dec->hpd_dyn_table);
     dec->hpd_cur_capacity -= DYNAMIC_ENTRY_OVERHEAD + entry->dte_name_len
                                                         + entry->dte_val_len;
+    ++dec->hpd_state;
     free(entry);
 }
 
@@ -1305,7 +1307,7 @@ hdec_get_table_entry (struct lshpack_dec *dec, uint32_t index)
 static
 #endif
        int
-lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
+lshpack_dec_push_entry (struct lshpack_dec *dec, uint8_t idx, const char *name,
                         unsigned name_len, const char *val, unsigned val_len)
 {
     struct dec_table_entry *entry;
@@ -1321,10 +1323,11 @@ lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
         free(entry);
         return -1;
     }
-
+    ++dec->hpd_state;
     dec->hpd_cur_capacity += DYNAMIC_ENTRY_OVERHEAD + name_len + val_len;
     entry->dte_name_len = name_len;
     entry->dte_val_len = val_len;
+    entry->dte_name_idx = idx;
     memcpy(DTE_NAME(entry), name, name_len);
     memcpy(DTE_VALUE(entry), val, val_len);
     return 0;
@@ -1465,7 +1468,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
 
     if (indexed_type == 0)
     {
-        if (0 != lshpack_dec_push_entry(dec, name, *name_len,
+        if (0 != lshpack_dec_push_entry(dec, index, name, *name_len,
                                             name + *name_len, *val_len))
             return -1;  //error
     }
@@ -1631,7 +1634,8 @@ lshpack_decode (struct lshpack_dec *dec,
     }
     else
     {
-        len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
+        len = hdec_dec_str((unsigned char *)name, output->val_len,
+                           src, src_end);
         if (len < 0)
             return len; //error
         if (len > UINT16_MAX)

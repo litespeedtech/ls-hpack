@@ -43,7 +43,7 @@ int
 lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,
                                         unsigned prefix_bits, uint32_t *value);
 int
-lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
+lshpack_dec_push_entry (struct lshpack_dec *dec, uint8_t name_idx, const char *name,
                         unsigned name_len, const char *val,
                         unsigned val_len);
 
