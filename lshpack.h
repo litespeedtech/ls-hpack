@@ -36,11 +36,11 @@ extern "C" {
 #define LSXPACK_MAX_STRLEN UINT_MAX
 #endif
 
-#if UINT_MAX == 65535
+#if LSXPACK_MAX_STRLEN == 65535
 typedef uint16_t lsxpack_strlen_t;
-#elif UINT_MAX == 4294967295
+#elif LSXPACK_MAX_STRLEN == 4294967295
 typedef uint32_t lsxpack_strlen_t;
-#elif UINT_MAX == 18446744073709551615ULL
+#elif LSXPACK_MAX_STRLEN == 18446744073709551615ULL
 typedef uint64_t lsxpack_strlen_t;
 #else
 #error unexpected UINT_MAX
