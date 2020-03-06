@@ -1,5 +1,5 @@
-#ifndef LSXPACK_HEADER_H
-#define LSXPACK_HEADER_H
+#ifndef LSXPACK_HEADER_H_v200
+#define LSXPACK_HEADER_H_v200
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,14 +13,12 @@ extern "C" {
 #define LSXPACK_MAX_STRLEN UINT16_MAX
 #endif
 
-#if LSXPACK_MAX_STRLEN == 65535
+#if LSXPACK_MAX_STRLEN == UINT16_MAX
 typedef uint16_t lsxpack_strlen_t;
-#elif LSXPACK_MAX_STRLEN == 4294967295
+#elif LSXPACK_MAX_STRLEN == UINT32_MAX
 typedef uint32_t lsxpack_strlen_t;
-#elif LSXPACK_MAX_STRLEN == 18446744073709551615ULL
-typedef uint64_t lsxpack_strlen_t;
 #else
-#error unexpected UINT_MAX
+#error unexpected LSXPACK_MAX_STRLEN
 #endif
 
 enum lsxpack_flag
@@ -45,17 +43,17 @@ enum lsxpack_flag
 
 struct lsxpack_header
 {
-    char       *buf;                /* the buffer for headers */
-    const char *name_ptr;           /* the name pointer can be optionally set for encoding */
-    uint32_t    name_hash;          /* hash value for name */
-    uint32_t    nameval_hash;       /* hash value for name + value */
-    lsxpack_strlen_t    name_offset;/* the offset for name in the buffer */
-    lsxpack_strlen_t    name_len;   /* the length of name */
-    lsxpack_strlen_t    val_offset; /* the offset for value in the buffer */
-    uint16_t    val_len;            /* the length of value */
-    uint8_t     hpack_index;        /* HPACK static table index */
-    uint8_t     qpack_index;        /* QPACK static table index */
-    uint8_t     app_index;          /* APP header index */
+    char             *buf;          /* the buffer for headers */
+    const char       *name_ptr;     /* the name pointer can be optionally set for encoding */
+    uint32_t          name_hash;    /* hash value for name */
+    uint32_t          nameval_hash; /* hash value for name + value */
+    lsxpack_strlen_t  name_offset;  /* the offset for name in the buffer */
+    lsxpack_strlen_t  name_len;     /* the length of name */
+    lsxpack_strlen_t  val_offset;   /* the offset for value in the buffer */
+    lsxpack_strlen_t  val_len;      /* the length of value */
+    uint8_t           hpack_index;  /* HPACK static table index */
+    uint8_t           qpack_index;  /* QPACK static table index */
+    uint8_t           app_index;    /* APP header index */
     enum lsxpack_flag flags:8;      /* combination of lsxpack_flag */
 };
 
@@ -112,8 +110,30 @@ static inline void lsxpack_header_set_offset2(lsxpack_header_t *hdr, const char 
 }
 
 
+static inline void lsxpack_header_prepare_decode(lsxpack_header_t *hdr,
+                                                 char *out, int offset, int len)
+{
+    memset(hdr, 0, sizeof(*hdr));
+    hdr->buf = out;
+    hdr->name_offset = offset;
+    hdr->val_len = len;
+}
+
+
+static inline const char *lsxpack_header_get_name(const lsxpack_header_t *hdr)
+{
+    return hdr->name_ptr ? hdr->name_ptr
+                         : (hdr->name_len) ? hdr->buf + hdr->name_offset
+                                           : NULL;
+}
+
+
+static inline const char *lsxpack_header_get_value(const lsxpack_header_t *hdr)
+{   return hdr->buf + hdr->val_offset;  }
+
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif //LSXPACK_HEADER_H
+#endif //LSXPACK_HEADER_H_v200
