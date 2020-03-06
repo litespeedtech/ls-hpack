@@ -30,4 +30,4 @@ The library has been tested on the following platforms:
 - FreeBSD
 - Windows
 
-Copyright (c) 2018 LiteSpeed Technologies Inc
+Copyright (c) 2018 - 2020 LiteSpeed Technologies Inc
