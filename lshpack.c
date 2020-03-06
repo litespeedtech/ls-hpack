@@ -1555,6 +1555,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     if (len > UINT16_MAX)
         return -2;
 #endif
+    output->val_offset = output->name_offset + output->name_len + 2;
     output->val_len = len;
     memcpy(name + len, "\r\n", 2);
 
