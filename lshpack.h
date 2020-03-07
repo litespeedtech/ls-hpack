@@ -146,7 +146,7 @@ lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
                     const lshpack_header_t *header, int indexed_type);
 
 unsigned char *
-lshpack_encode (struct lshpack_enc *henc, unsigned char *dst,
+lshpack_enc_encode2 (struct lshpack_enc *henc, unsigned char *dst,
                 unsigned char *dst_end, lsxpack_header_t *hdr);
 
 void
@@ -191,7 +191,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     lshpack_strlen_t *val_len, uint32_t *name_idx);
 
 int
-lshpack_decode (struct lshpack_dec *dec,
+lshpack_dec_decode2 (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
     lsxpack_header_t *output);
 
