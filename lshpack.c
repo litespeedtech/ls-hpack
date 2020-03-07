@@ -438,6 +438,44 @@ lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
 }
 
 
+unsigned
+lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
+                            const char *val, lshpack_strlen_t val_len)
+{
+    uint32_t name_hash, nameval_hash;
+    unsigned i;
+
+    name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
+    nameval_hash = XXH32(val, val_len, name_hash);
+
+    i = (nameval_hash >> XXH_NAMEVAL_SHIFT) & ((1 << XXH_NAMEVAL_WIDTH) - 1);
+    if (nameval2id[i])
+    {
+        i = nameval2id[i] - 1;
+        if (static_table[i].name_len == name_len
+            && static_table[i].val_len == val_len
+            && memcmp(name, static_table[i].name, name_len) == 0
+            && memcmp(val, static_table[i].val, val_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    i = (name_hash >> XXH_NAME_SHIFT) & ((1 << XXH_NAME_WIDTH) - 1);
+    if (name2id[i])
+    {
+        i = name2id[i] - 1;
+        if (static_table[i].name_len == name_len
+            && memcmp(name, static_table[i].name, name_len) == 0)
+        {
+            return i + 1;
+        }
+    }
+
+    return 0;
+}
+
+
 /* Given a dynamic entry, return its table ID */
 static unsigned
 henc_calc_table_id (const struct lshpack_enc *enc,
@@ -650,13 +688,20 @@ lshpack_enc_huff_encode (const unsigned char *src,
         {                               /* Write out */
 #if UINTPTR_MAX == 18446744073709551615ull
         case 8: *p_dst++ = bits >> 56;
+        /* fall through */
         case 7: *p_dst++ = bits >> 48;
+        /* fall through */
         case 6: *p_dst++ = bits >> 40;
+        /* fall through */
         case 5: *p_dst++ = bits >> 32;
 #endif
+        /* fall through */
         case 4: *p_dst++ = bits >> 24;
+        /* fall through */
         case 3: *p_dst++ = bits >> 16;
+        /* fall through */
         case 2: *p_dst++ = bits >> 8;
+        /* fall through */
         default: *p_dst++ = bits;
         }
         return p_dst - dst;
@@ -1541,9 +1586,11 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             case 8:
                 buf <<= 8;
                 buf |= (uintptr_t) *src++;
+                /* fall through */
             case 7:
                 buf <<= 8;
                 buf |= (uintptr_t) *src++;
+                /* fall through */
             default:
                 buf <<= 48;
                 buf |= (uintptr_t) *src++ << 40;
@@ -1551,12 +1598,15 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                 buf |= (uintptr_t) *src++ << 24;
                 buf |= (uintptr_t) *src++ << 16;
 #else
+                /* fall through */
             case 4:
                 buf <<= 8;
                 buf |= (uintptr_t) *src++;
+                /* fall through */
             case 3:
                 buf <<= 8;
                 buf |= (uintptr_t) *src++;
+                /* fall through */
             default:
                 buf <<= 16;
 #endif

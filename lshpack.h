@@ -38,6 +38,7 @@ extern "C" {
 #define LSHPACK_PATCH_VERSION 0
 
 #define lshpack_strlen_t lsxpack_strlen_t
+#define LSHPACK_MAX_STRLEN LSXPACK_MAX_STRLEN
 
 struct lshpack_enc;
 struct lshpack_dec;
@@ -255,6 +256,10 @@ struct lshpack_dec
     unsigned           hpd_state;
     struct lshpack_arr hpd_dyn_table;
 };
+
+unsigned
+lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
+                            const char *val, lshpack_strlen_t val_len);
 
 #ifdef __cplusplus
 }
