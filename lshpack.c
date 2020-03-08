@@ -2214,7 +2214,7 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
             *name++ = ' ';
 
             if (entry->dte_name_idx)
-                output->hpack_index = index;
+                output->hpack_index = entry->dte_name_idx;
             else
                 output->hpack_index = LSHPACK_HDR_UNKNOWN;
             output->flags |= LSXPACK_HPACK_IDX;
