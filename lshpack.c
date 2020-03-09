@@ -2087,6 +2087,22 @@ lshpack_dec_copy_value (lsxpack_header_t *output, char *dest, const char *val,
 }
 
 
+static inline int
+lshpack_dec_copy_name (lsxpack_header_t *output, char **dest, const char *name,
+                       unsigned name_len)
+{
+    if (name_len + 2 > (unsigned)output->val_len)
+        return -1;
+    output->val_len -= name_len + 2;
+    output->name_len = name_len;
+    memcpy(*dest, name, name_len);
+    *dest += name_len;
+    *(*dest)++ = ':';
+    *(*dest)++ = ' ';
+    return 0;
+}
+
+
 enum
 {
     LSHPACK_ADD_INDEX = 0,
@@ -2186,14 +2202,10 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
     {
         if (index <= HPACK_STATIC_TABLE_SIZE) //static table
         {
-            if (static_table[index - 1].name_len + 2 > output->val_len)
+            if (lshpack_dec_copy_name(output, &name,
+                    static_table[index - 1].name,
+                    static_table[index - 1].name_len) == -1)
                 return -1;
-            output->val_len -= static_table[index - 1].name_len + 2;
-            output->name_len = static_table[index - 1].name_len;
-            memcpy(name, static_table[index - 1].name, output->name_len);
-            name += output->name_len;
-            *name++ = ':';
-            *name++ = ' ';
 
             if (indexed_type == LSHPACK_VAL_INDEX)
                 return lshpack_dec_copy_value(output, name,
@@ -2205,15 +2217,9 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
             entry = hdec_get_table_entry(dec, index);
             if (entry == NULL)
                 return -1;
-            if (entry->dte_name_len + 2 > output->val_len)
+            if (lshpack_dec_copy_name(output, &name,
+                    DTE_NAME(entry), entry->dte_name_len) == -1)
                 return -1;
-
-            output->val_len -= entry->dte_name_len + 2;
-            output->name_len = entry->dte_name_len;
-            memcpy(name, DTE_NAME(entry), output->name_len);
-            name += output->name_len;
-            *name++ = ':';
-            *name++ = ' ';
 
             if (entry->dte_name_idx)
                 output->hpack_index = entry->dte_name_idx;
