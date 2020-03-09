@@ -1472,6 +1472,9 @@ test_hdec_boundary (void)
         struct iovec value;
     } headers[] = {
         { .name = IOV("dude"), .value = IOV("where is my car?"), },
+        { .name = IOV(":path"), .value = IOV("FINDER!"), },
+        { .name = IOV("cheese"), .value = IOV("puffs"), },
+        { .name = IOV(":status"), .value = IOV("200"), },
     }, *header;
     size_t enc_sz, sz, out_sz;
     unsigned n;
@@ -1491,7 +1494,7 @@ test_hdec_boundary (void)
         p = lshpack_enc_encode2(&henc, encbuf + enc_sz,
                                         encbuf + sizeof(encbuf), &xhdr);
         assert(p > encbuf + enc_sz);
-        enc_sz += p - encbuf;
+        enc_sz = p - encbuf;
     }
     lshpack_enc_cleanup(&henc);
 
@@ -1516,6 +1519,12 @@ test_hdec_boundary (void)
         lsxpack_header_prepare_decode(&xhdr, out, 0, sz);
         rc = lshpack_dec_decode2(&hdec, &p, encbuf + enc_sz, &xhdr);
         assert(rc == 0);
+        assert(xhdr.name_len == headers[n].name.iov_len);
+        assert(xhdr.val_len == headers[n].value.iov_len);
+        assert(0 == memcmp(headers[n].name.iov_base,
+                            lsxpack_header_get_name(&xhdr), xhdr.name_len));
+        assert(0 == memcmp(headers[n].value.iov_base,
+                            lsxpack_header_get_value(&xhdr), xhdr.val_len));
     }
     lshpack_dec_cleanup(&hdec);
 }

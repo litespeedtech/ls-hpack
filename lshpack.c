@@ -2268,8 +2268,13 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
         name += output->name_len;
         if (http1x)
         {
-            *name++ = ':';
-            *name++ = ' ';
+            if (output->name_len + http1x <= output->val_len)
+            {
+                *name++ = ':';
+                *name++ = ' ';
+            }
+            else
+                return -3;
         }
         output->val_len -= len + http1x;
     }
@@ -2279,10 +2284,15 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
         return len; //error
     if (len > UINT16_MAX)
         return -2;
+    if (http1x)
+    {
+        if ((unsigned) len + http1x <= output->val_len)
+            memcpy(name + len, "\r\n", 2);
+        else
+            return -3;
+    }
     output->val_offset = output->name_offset + output->name_len + http1x;
     output->val_len = len;
-    if (http1x)
-        memcpy(name + len, "\r\n", 2);
 
     if (indexed_type == LSHPACK_ADD_INDEX)
     {
