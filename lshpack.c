@@ -1128,9 +1128,10 @@ struct decode_status
 
 
 void
-lshpack_dec_init (struct lshpack_dec *dec)
+lshpack_dec_init (struct lshpack_dec *dec, enum lshpack_dec_flags flags)
 {
     memset(dec, 0, sizeof(*dec));
+    dec->hpd_flags = flags;
     dec->hpd_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     dec->hpd_cur_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     lshpack_arr_init(&dec->hpd_dyn_table);

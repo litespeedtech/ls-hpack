@@ -164,21 +164,20 @@ lshpack_enc_use_hist (struct lshpack_enc *, int on);
 int
 lshpack_enc_hist_used (const struct lshpack_enc *);
 
+enum lshpack_dec_flags {
+    /**
+     * Turn HTTP/1.x mode on or off.  In this mode, decoded name and value
+     * pair are separated by ": " and "\r\n" is appended to the end of the
+     * string.  By default, this mode is off.
+     */
+    LSHPACK_DEC_HTTP1X  = 1 << 0,
+};
+
 /**
  * Initialize HPACK decoder structure.
  */
 void
-lshpack_dec_init (struct lshpack_dec *);
-
-/**
- * Turn HTTP/1.x mode on or off.  In this mode, decoded name and value pair
- * are separated by ": " and "\r\n" is appended to the end of the string.  By
- * default, this mode is off.
- *
- * Returns previous value of the mode.
- */
-int
-lshpack_dec_set_http1x (struct lshpack_dec *, int http1x_mode);
+lshpack_dec_init (struct lshpack_dec *, enum lshpack_dec_flags);
 
 /**
  * Clean up HPACK decoder structure, freeing all allocated memory.
@@ -261,9 +260,8 @@ struct lshpack_arr
 struct lshpack_dec
 {
     struct lshpack_arr hpd_dyn_table;
-    enum {
-        LSHPACK_DEC_HTTP1X  = 1 << 0,
-    }                  hpd_flags;
+    enum lshpack_dec_flags
+                       hpd_flags;
     unsigned           hpd_max_capacity;       /* Maximum set by caller */
     unsigned           hpd_cur_max_capacity;   /* Adjusted at runtime */
     unsigned           hpd_cur_capacity;

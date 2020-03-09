@@ -327,8 +327,7 @@ test_hpack_test_RFC_Example (void)
     lshpack_enc_init(&henc);
     lshpack_enc_set_max_capacity(&henc, 256);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     lshpack_dec_set_max_capacity(&hdec, 256);
 
     unsigned char *pBuf = respBuf;
@@ -502,8 +501,7 @@ test_decode_limits (void)
         "some-header-name", 16, "some-header-value", 17, 0);
     lshpack_enc_cleanup(&henc);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
 
     for (n = 0; n < sizeof(enough) / sizeof(enough[0]); ++n)
     {
@@ -543,8 +541,7 @@ test_hpack_self_enc_dec_test (void)
     struct lshpack_enc henc;
     lshpack_enc_init(&henc);
     struct lshpack_dec hdec;
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     const unsigned char *pSrc = respBuf;
     const unsigned char *bufEnd;
     int rc;
@@ -715,8 +712,7 @@ test_hpack_encode_and_decode (void)
     lshpack_enc_init(&henc);
 
     struct lshpack_dec hdec;
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
 
     char out[1000];
 
@@ -755,8 +751,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
     struct lshpack_enc henc;
     lshpack_enc_init(&henc);
     struct lshpack_dec hdec;
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     int nCount = sizeof(g_hpack_dyn_init_table_t) / sizeof(struct table_elem);
     int i;
     for (i = nCount - 1; i >= 0; --i)
@@ -851,8 +846,7 @@ test_hdec_table_size_updates (void)
     {
         unsigned const char buf[] = { 0x20 | 0x1E, 0x88 };
         src = buf;
-        lshpack_dec_init(&hdec);
-        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+        lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         lshpack_dec_set_max_capacity(&hdec, 0x11);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
@@ -866,8 +860,7 @@ test_hdec_table_size_updates (void)
     {
         unsigned const char buf[] = { 0x20 | 0x1E, 0x88 };
         src = buf;
-        lshpack_dec_init(&hdec);
-        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+        lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s == 0);
@@ -890,8 +883,7 @@ test_hdec_table_size_updates (void)
                 0x88,
         };
         src = buf;
-        lshpack_dec_init(&hdec);
-        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+        lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s == 0);
@@ -905,8 +897,7 @@ test_hdec_table_size_updates (void)
     {
         unsigned const char buf[] = { 0x20 | 0x1E, };
         src = buf;
-        lshpack_dec_init(&hdec);
-        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+        lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s < 0);
@@ -1000,8 +991,7 @@ test_henc_nonascii (void)
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1042,8 +1032,7 @@ test_henc_long_compressable (void)
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1091,8 +1080,7 @@ test_henc_long_uncompressable (void)
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1251,8 +1239,7 @@ test_header_arr (void)
     lshpack_enc_cleanup(&henc);
 
     /* Now decompress them and compare with originals: */
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     comp = compressed.buf;
     end = compressed.buf + compressed.sz;
     for (i = 0; comp < end; ++i)
@@ -1448,8 +1435,7 @@ test_hdec_static_idx_0 (void)
     const unsigned char input[] = "\x80\x02""du\x02""de";
     char out[0x100];
 
-    lshpack_dec_init(&dec);
-    lshpack_dec_set_http1x(&dec, s_http1x_mode);
+    lshpack_dec_init(&dec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
 
     src = input;
     r = lshpack_dec_decode(&dec, &src, src + sizeof(input), out,
@@ -1498,8 +1484,7 @@ test_hdec_boundary (void)
     }
     lshpack_enc_cleanup(&henc);
 
-    lshpack_dec_init(&hdec);
-    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     p = encbuf;
     for (n = 0; n < sizeof(headers) / sizeof(headers[0]); ++n)
     {
