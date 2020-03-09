@@ -199,11 +199,18 @@ lshpack_dec_decode (struct lshpack_dec *dec,
 
 /*
  * Return value and `src' behavior same as in lshpack_dec_decode()
+ *
+ * To calculate number of bytes written to the output buffer:
+ *  output->name_len + output->val_len + lshpack_dec_extra_bytes(dec)
  */
 int
 lshpack_dec_decode2 (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
     struct lsxpack_header *output);
+
+/* Return number of extra bytes per header */
+#define lshpack_dec_extra_bytes(dec_) ( \
+    (dec_)->hpd_flags & LSHPACK_DEC_HTTP1X ? 4 : 0)
 
 void
 lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);

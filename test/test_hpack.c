@@ -482,6 +482,18 @@ all_set_to (unsigned const char *buf, size_t bufsz, unsigned char val)
 }
 
 
+static unsigned char *
+encode2_wrapper (struct lshpack_enc *enc, unsigned char *dst,
+        unsigned char *dst_end, const char *name, unsigned name_len,
+        const char *value, unsigned value_len, int indexed_type)
+{
+    struct lsxpack_header xhdr;
+
+    lsxpack_header_set_ptr(&xhdr, name, name_len, value, value_len);
+    return lshpack_enc_encode2(enc, dst, dst_end, &xhdr);
+}
+
+
 static void
 test_decode_limits (void)
 {
@@ -490,14 +502,15 @@ test_decode_limits (void)
     char out[0x100];
     struct lshpack_enc henc;
     struct lshpack_dec hdec;
-    unsigned name_len, val_len;
     int s;
     unsigned enough[] = { 33, 34, 40, 50, 100, };
     unsigned not_enough[] = { 32, 31, 30, 10, 1, 0, };
     unsigned n;
+    struct lsxpack_header xhdr;
+    size_t written;
 
     lshpack_enc_init(&henc);
-    end = lshpack_enc_encode(&henc, comp, comp + sizeof(comp),
+    end = encode2_wrapper(&henc, comp, comp + sizeof(comp),
         "some-header-name", 16, "some-header-value", 17, 0);
     lshpack_enc_cleanup(&henc);
 
@@ -506,24 +519,26 @@ test_decode_limits (void)
     for (n = 0; n < sizeof(enough) / sizeof(enough[0]); ++n)
     {
         memset(out, 0xFA, sizeof(out));
+        lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
         src = comp;
-        s = lshpack_dec_decode(&hdec, &src, end, out, out + enough[n],
-                                &name_len, &val_len);
+        s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
         assert(0 == s);
         assert(src == end);
-        assert(16 == name_len);
-        assert(17 == val_len);
-        assert(0 == memcmp(out, "some-header-namesome-header-value", 33));
-        assert(all_set_to((unsigned char *) out + enough[n],
-                                        sizeof(out) - enough[n], 0xFA));
+        assert(16 == xhdr.name_len);
+        assert(17 == xhdr.val_len);
+        assert(0 == memcmp(lsxpack_header_get_name(&xhdr), "some-header-name", 16));
+        assert(0 == memcmp(lsxpack_header_get_value(&xhdr), "some-header-value", 17));
+        written = xhdr.name_len + xhdr.val_len + lshpack_dec_extra_bytes(&hdec);
+        assert(all_set_to((unsigned char *) out + written,
+                                        sizeof(out) - written, 0xFA));
     }
 
     for (n = 0; n < sizeof(not_enough) / sizeof(not_enough[0]); ++n)
     {
         memset(out, 0xFA, sizeof(out));
+        lsxpack_header_prepare_decode(&xhdr, out, 0, not_enough[n]);
         src = comp;
-        s = lshpack_dec_decode(&hdec, &src, end, out, out + not_enough[n],
-                                &name_len, &val_len);
+        s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
         assert(s < 0);
         assert(all_set_to((unsigned char *) out + not_enough[n],
                                     sizeof(out) - not_enough[n], 0xFA));
@@ -558,7 +573,7 @@ test_hpack_self_enc_dec_test (void)
     unsigned char *pBuf = respBuf;
 
     //Reproduce bug with special charset
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("content-disposition"),
             STR_TO_IOVEC_TEST("inline; filename=\"Ekran Alıntısı.PNG\""), 0);
     displayHeader(respBuf, pBuf - respBuf);
@@ -581,18 +596,18 @@ test_hpack_self_enc_dec_test (void)
 
     //1:
     pBuf = respBuf;
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
             STR_TO_IOVEC_TEST("200"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("cache-control"),
             STR_TO_IOVEC_TEST("public, max-age=1000"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("date"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("date"),
             STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:23 GMT"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
             STR_TO_IOVEC_TEST("*.*"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("location"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("location"),
             STR_TO_IOVEC_TEST("https://www.example.com"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key"),
             STR_TO_IOVEC_TEST("my-test-values1111"), 0);
     displayHeader(respBuf, pBuf - respBuf);
     printTable(&henc);
@@ -617,28 +632,28 @@ test_hpack_self_enc_dec_test (void)
 
     //2:
     pBuf = respBuf;
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
             STR_TO_IOVEC_TEST("404"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("cache-control"),
             STR_TO_IOVEC_TEST("public, max-age=1000"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
             STR_TO_IOVEC_TEST("*.*"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("from"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("from"),
             STR_TO_IOVEC_TEST("123456@mymail.com"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("host"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("host"),
             STR_TO_IOVEC_TEST("www.host.com"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("vary"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("vary"),
             STR_TO_IOVEC_TEST("wsdsdsdfdsfues1111"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("via"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("via"),
             STR_TO_IOVEC_TEST("m"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("range"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("range"),
             STR_TO_IOVEC_TEST("1111"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key2"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key2"),
             STR_TO_IOVEC_TEST("my-test-values22222222222222"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("my-test_key3333"), STR_TO_IOVEC_TEST("my-test-va3"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("my-test_key44"), STR_TO_IOVEC_TEST("my-test-value444"), 0);
     displayHeader(respBuf, pBuf - respBuf);
     printTable(&henc);
@@ -660,26 +675,26 @@ test_hpack_self_enc_dec_test (void)
 
     //3:
     pBuf = respBuf;
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST(":status"),
             STR_TO_IOVEC_TEST("307"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("cache-control"),
             STR_TO_IOVEC_TEST("public, max-age=1000"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("allow"),
             STR_TO_IOVEC_TEST("*.*.*.*"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("from"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("from"),
             STR_TO_IOVEC_TEST("123456@mymail.com"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("host"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("host"),
             STR_TO_IOVEC_TEST("www.host.com"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("my-test_key3333"), STR_TO_IOVEC_TEST("my-test-va3"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("vary"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("vary"),
             STR_TO_IOVEC_TEST("wsdsdsdfdsfues1111"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("via"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("via"),
             STR_TO_IOVEC_TEST("mmmmm"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key2"),
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, STR_TO_IOVEC_TEST("my-test_key2"),
             STR_TO_IOVEC_TEST("my-test-values22222222222222"), 0);
-    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd,
+    pBuf = encode2_wrapper(&henc, pBuf, respBufEnd,
             STR_TO_IOVEC_TEST("my-test_key44"), STR_TO_IOVEC_TEST("my-test-value444"), 0);
     displayHeader(respBuf, pBuf - respBuf);
     printTable(&henc);
@@ -721,7 +736,7 @@ test_hpack_encode_and_decode (void)
     const unsigned char *dec = buf;
     unsigned char *enc = buf;
 
-    enc = lshpack_enc_encode(&henc, enc, end,
+    enc = encode2_wrapper(&henc, enc, end,
             STR_TO_IOVEC_TEST(":authority"),
             STR_TO_IOVEC_TEST("www.example.com"), 0);
     assert(enc > buf);
@@ -817,7 +832,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
         char *val = name + name_len;
         printf("%.*s: %.*s\n", name_len, name, val_len, val);
 
-        pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, (char *)name, name_len,
+        pBuf = encode2_wrapper(&henc, pBuf, respBufEnd, (char *)name, name_len,
                 (char *)val, val_len, 0);
 
         name_len = 1024;
@@ -916,7 +931,7 @@ test_henc_boundary1 (void)
     unsigned char outbuf[0x100];
 
     lshpack_enc_init(&henc);
-    end = lshpack_enc_encode(&henc, outbuf, outbuf,
+    end = encode2_wrapper(&henc, outbuf, outbuf,
         STR_AND_LEN("header"), STR_AND_LEN("value"), 0);
     assert(end == outbuf);
     lshpack_enc_cleanup(&henc);
@@ -943,14 +958,14 @@ test_henc_boundary2 (void)
     for (i = 62; i <= 127; ++i)
     {
         buf[0] = i;
-        end = lshpack_enc_encode(&henc, outbuf, outbuf + sizeof(outbuf),
+        end = encode2_wrapper(&henc, outbuf, outbuf + sizeof(outbuf),
             STR_AND_LEN("header"), buf, 1, 0);
         assert(end > outbuf);
     }
 
     /* Generate header/62 entry again, but only give one byte for output: */
     buf[0] = 62;
-    end = lshpack_enc_encode(&henc, outbuf, outbuf + 1,
+    end = encode2_wrapper(&henc, outbuf, outbuf + 1,
         STR_AND_LEN("header"), buf, 1, 0);
     assert(end == outbuf);
 
@@ -958,7 +973,7 @@ test_henc_boundary2 (void)
      * to make sure that the table ID is indeed two bytes long.
      */
     buf[0] = 62;
-    end = lshpack_enc_encode(&henc, outbuf, outbuf + 2,
+    end = encode2_wrapper(&henc, outbuf, outbuf + 2,
         STR_AND_LEN("header"), buf, 1, 0);
     assert(end == outbuf + 2);
 
@@ -986,7 +1001,7 @@ test_henc_nonascii (void)
     char uncomp[0x100];
 
     lshpack_enc_init(&henc);
-    end = lshpack_enc_encode(&henc, comp, comp + sizeof(comp),
+    end = encode2_wrapper(&henc, comp, comp + sizeof(comp),
         STR_AND_LEN("header"), value, sizeof(value), 0);
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
@@ -1027,7 +1042,7 @@ test_henc_long_compressable (void)
     char uncomp[0x1000];
 
     lshpack_enc_init(&henc);
-    end = lshpack_enc_encode(&henc, comp, comp + sizeof(comp),
+    end = encode2_wrapper(&henc, comp, comp + sizeof(comp),
         STR_AND_LEN("header"), value, sizeof(value), 0);
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
@@ -1075,7 +1090,7 @@ test_henc_long_uncompressable (void)
     char uncomp[0x1000];
 
     lshpack_enc_init(&henc);
-    end = lshpack_enc_encode(&henc, comp, comp + sizeof(comp),
+    end = encode2_wrapper(&henc, comp, comp + sizeof(comp),
         STR_AND_LEN("header"), value, sizeof(value), 0);
     assert(end > comp);
     lshpack_enc_cleanup(&henc);
