@@ -1138,21 +1138,6 @@ lshpack_dec_init (struct lshpack_dec *dec, enum lshpack_dec_flags flags)
 }
 
 
-int
-lshpack_dec_set_http1x (struct lshpack_dec *dec, int http1x_mode)
-{
-    int old;
-
-    old = (dec->hpd_flags & LSHPACK_DEC_HTTP1X) != 0;
-    if (http1x_mode)
-        dec->hpd_flags |= LSHPACK_DEC_HTTP1X;
-    else
-        dec->hpd_flags &= ~LSHPACK_DEC_HTTP1X;
-
-    return old;
-}
-
-
 void
 lshpack_dec_cleanup (struct lshpack_dec *dec)
 {
