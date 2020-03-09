@@ -1647,7 +1647,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                            src, src_end);
         if (len < 0)
             return len; //error
-        if (len > UINT16_MAX)
+        if ((unsigned) len > LSXPACK_MAX_STRLEN)
             return -2;
         output->name_len = len;
         name += output->name_len;
@@ -1667,7 +1667,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
     if (len < 0)
         return len; //error
-    if (len > UINT16_MAX)
+    if ((unsigned) len > LSXPACK_MAX_STRLEN)
         return -2;
     if (http1x)
     {

@@ -13,7 +13,7 @@ struct enc_dyn_table_entry
 };
 
 unsigned
-lshpack_enc_get_static_name (const const struct lsxpack_header *);
+lshpack_enc_get_static_name (const struct lsxpack_header *);
 
 unsigned
 lshpack_enc_get_static_nameval (const struct lsxpack_header *);
