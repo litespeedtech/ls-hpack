@@ -190,21 +190,12 @@ lshpack_dec_cleanup (struct lshpack_dec *);
  *
  * If 0 is returned, `src' is advanced.  Calling with a zero-length input
  * buffer results in an error.
- */
-int
-lshpack_dec_decode (struct lshpack_dec *dec,
-    const unsigned char **src, const unsigned char *src_end,
-    char *dst, char *const dst_end, unsigned *name_len,
-    unsigned *val_len);
-
-/*
- * Return value and `src' behavior same as in lshpack_dec_decode()
  *
  * To calculate number of bytes written to the output buffer:
  *  output->name_len + output->val_len + lshpack_dec_extra_bytes(dec)
  */
 int
-lshpack_dec_decode2 (struct lshpack_dec *dec,
+lshpack_dec_decode (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
     struct lsxpack_header *output);
 

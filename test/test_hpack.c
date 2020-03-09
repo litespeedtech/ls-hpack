@@ -430,7 +430,7 @@ test_hpack_test_RFC_Example (void)
     while (pSrc < bufEnd)
     {
         lsxpack_header_prepare_decode(&hdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &hdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &hdr);
         assert(rc == 0);
         char *name = out;
         char *val = hdr.buf + hdr.val_offset;
@@ -446,7 +446,7 @@ test_hpack_test_RFC_Example (void)
     while (pSrc < bufEnd)
     {
         lsxpack_header_prepare_decode(&hdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &hdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &hdr);
         assert(rc == 0);
         char *name = out;
         char *val = hdr.buf + hdr.val_offset;
@@ -460,7 +460,7 @@ test_hpack_test_RFC_Example (void)
     while (pSrc < bufEnd)
     {
         lsxpack_header_prepare_decode(&hdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &hdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &hdr);
         assert(rc == 0);
         char *name = out;
         char *val = hdr.buf + hdr.val_offset;
@@ -521,7 +521,7 @@ test_decode_limits (void)
         memset(out, 0xFA, sizeof(out));
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
         src = comp;
-        s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, end, &xhdr);
         assert(0 == s);
         assert(src == end);
         assert(16 == xhdr.name_len);
@@ -538,7 +538,7 @@ test_decode_limits (void)
         memset(out, 0xFA, sizeof(out));
         lsxpack_header_prepare_decode(&xhdr, out, 0, not_enough[n]);
         src = comp;
-        s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, end, &xhdr);
         assert(s < 0);
         assert(all_set_to((unsigned char *) out + not_enough[n],
                                     sizeof(out) - not_enough[n], 0xFA));
@@ -586,7 +586,7 @@ test_hpack_self_enc_dec_test (void)
     while (1)
     {
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &xhdr);
         if (rc != 0)
             break;
         char *name = out + xhdr.name_offset;
@@ -623,7 +623,7 @@ test_hpack_self_enc_dec_test (void)
     while (1)
     {
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &xhdr);
         if (rc != 0)
             break;
         char *name = out + xhdr.name_offset;
@@ -670,7 +670,7 @@ test_hpack_self_enc_dec_test (void)
     while (1)
     {
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &xhdr);
         if (rc != 0)
             break;
         char *name = out + xhdr.name_offset;
@@ -714,7 +714,7 @@ test_hpack_self_enc_dec_test (void)
     while (1)
     {
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &xhdr);
         if (rc != 0)
             break;
         char *name = out + xhdr.name_offset;
@@ -752,7 +752,7 @@ test_hpack_encode_and_decode (void)
 
     struct lsxpack_header xhdr;
     lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-    int rc = lshpack_dec_decode2(&hdec, &dec, enc, &xhdr);
+    int rc = lshpack_dec_decode(&hdec, &dec, enc, &xhdr);
     assert(rc == 0);
     assert(xhdr.name_len == 10);
     assert(xhdr.val_len == 15);
@@ -835,7 +835,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
     while (pSrc < bufEnd)
     {
         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-        rc = lshpack_dec_decode2(&hdec, &pSrc, bufEnd, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &pSrc, bufEnd, &xhdr);
         assert(rc == 0);
 
         char *name = (char *) lsxpack_header_get_name(&xhdr);
@@ -871,7 +871,7 @@ test_hdec_table_size_updates (void)
         lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         lshpack_dec_set_max_capacity(&hdec, 0x11);
         lsxpack_header_prepare_decode(&xhdr, outbuf, 0, sizeof(outbuf));
-        s = lshpack_dec_decode2(&hdec, &src, src + sizeof(buf), &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), &xhdr);
         assert(s < 0);
         assert(hdec.hpd_cur_max_capacity == 0x11);
         lshpack_dec_cleanup(&hdec);
@@ -884,7 +884,7 @@ test_hdec_table_size_updates (void)
         src = buf;
         lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         lsxpack_header_prepare_decode(&xhdr, outbuf, 0, sizeof(outbuf));
-        s = lshpack_dec_decode2(&hdec, &src, src + sizeof(buf), &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), &xhdr);
         assert(s == 0);
         assert(src == buf + sizeof(buf));
         assert(hdec.hpd_cur_max_capacity == 0x1E);
@@ -907,7 +907,7 @@ test_hdec_table_size_updates (void)
         src = buf;
         lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         lsxpack_header_prepare_decode(&xhdr, outbuf, 0, sizeof(outbuf));
-        s = lshpack_dec_decode2(&hdec, &src, src + sizeof(buf), &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), &xhdr);
         assert(s == 0);
         assert(src == buf + sizeof(buf));
         assert(hdec.hpd_cur_max_capacity == 0x14);
@@ -921,7 +921,7 @@ test_hdec_table_size_updates (void)
         src = buf;
         lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
         lsxpack_header_prepare_decode(&xhdr, outbuf, 0, sizeof(outbuf));
-        s = lshpack_dec_decode2(&hdec, &src, src + sizeof(buf), &xhdr);
+        s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), &xhdr);
         assert(s < 0);
         lshpack_dec_cleanup(&hdec);
     }
@@ -1016,7 +1016,7 @@ test_henc_nonascii (void)
     lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     lsxpack_header_prepare_decode(&xhdr, uncomp, 0, sizeof(uncomp));
-    s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
+    s = lshpack_dec_decode(&hdec, &src, end, &xhdr);
     assert(s == 0);
     assert(sizeof(value) == xhdr.val_len);
     assert(0 == memcmp(value, lsxpack_header_get_value(&xhdr), xhdr.val_len));
@@ -1057,7 +1057,7 @@ test_henc_long_compressable (void)
     lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     lsxpack_header_prepare_decode(&xhdr, uncomp, 0, sizeof(uncomp));
-    s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
+    s = lshpack_dec_decode(&hdec, &src, end, &xhdr);
     assert(s == 0);
     assert(sizeof(value) == xhdr.val_len);
     assert(0 == memcmp(value, lsxpack_header_get_value(&xhdr), xhdr.val_len));
@@ -1105,7 +1105,7 @@ test_henc_long_uncompressable (void)
     lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     src = comp;
     lsxpack_header_prepare_decode(&xhdr, uncomp, 0, sizeof(uncomp));
-    s = lshpack_dec_decode2(&hdec, &src, end, &xhdr);
+    s = lshpack_dec_decode(&hdec, &src, end, &xhdr);
     assert(s == 0);
     assert(sizeof(value) == xhdr.val_len);
     assert(0 == memcmp(value, lsxpack_header_get_value(&xhdr), xhdr.val_len));
@@ -1277,7 +1277,7 @@ test_header_arr (void)
              * need to save it.
              */
             lsxpack_header_prepare_decode(&xhdr, out, 0, *size);
-            s = lshpack_dec_decode2(&hdec, &comp, end, &xhdr);
+            s = lshpack_dec_decode(&hdec, &comp, end, &xhdr);
             if (s == 0)
                 break;
             /* There is no return code consistency, unfortunately */
@@ -1461,7 +1461,7 @@ test_hdec_static_idx_0 (void)
 
     src = input;
     lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
-    r = lshpack_dec_decode2(&dec, &src, src + sizeof(input), &xhdr);
+    r = lshpack_dec_decode(&dec, &src, src + sizeof(input), &xhdr);
     assert(r == -1);
 
     lshpack_dec_cleanup(&dec);
@@ -1519,12 +1519,12 @@ test_hdec_boundary (void)
         {
             lsxpack_header_prepare_decode(&xhdr, out, 0, sz);
             orig_p = p;
-            rc = lshpack_dec_decode2(&hdec, &p, encbuf + enc_sz, &xhdr);
+            rc = lshpack_dec_decode(&hdec, &p, encbuf + enc_sz, &xhdr);
             assert(rc < 0);
             p = orig_p;
         }
         lsxpack_header_prepare_decode(&xhdr, out, 0, sz);
-        rc = lshpack_dec_decode2(&hdec, &p, encbuf + enc_sz, &xhdr);
+        rc = lshpack_dec_decode(&hdec, &p, encbuf + enc_sz, &xhdr);
         assert(rc == 0);
         assert(xhdr.name_len == headers[n].name.iov_len);
         assert(xhdr.val_len == headers[n].value.iov_len);
