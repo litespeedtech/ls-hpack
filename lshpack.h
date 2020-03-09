@@ -129,10 +129,7 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  * @param[in,out] henc - A pointer to a valid HPACK API struct
  * @param[out] dst - A pointer to destination buffer
  * @param[out] dst_end - A pointer to end of destination buffer
- * @param[in] name - A pointer to the item name
- * @param[in] name_len - The item name's length
- * @param[in] value - A pointer to the item value
- * @param[in] value_len - The item value's length
+ * @param[in] input - Header to encode
  * @param[in] indexed_type - 0, Add, 1,: without, 2: never
  *
  * @return The (possibly advanced) dst pointer.  If the destination
@@ -140,12 +137,7 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-    unsigned char *dst_end, const char *name, unsigned name_len,
-    const char *value, unsigned value_len, int indexed_type);
-
-unsigned char *
-lshpack_enc_encode2 (struct lshpack_enc *henc, unsigned char *dst,
-                unsigned char *dst_end, lsxpack_header_t *hdr);
+        unsigned char *dst_end, struct lsxpack_header *, int indexed_type);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
@@ -266,9 +258,9 @@ struct lshpack_dec
     unsigned           hpd_state;
 };
 
+/* This function may update hash values and flags */
 unsigned
-lshpack_enc_get_stx_tab_id (const char *name, lshpack_strlen_t name_len,
-                            const char *val, lshpack_strlen_t val_len);
+lshpack_enc_get_stx_tab_id (struct lsxpack_header *);
 
 #ifdef __cplusplus
 }

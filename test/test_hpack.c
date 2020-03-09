@@ -236,21 +236,22 @@ static unsigned
 lookup_static_table (const char *name, unsigned name_len,
                  const char *val, unsigned val_len, int *val_matched)
 {
-    uint32_t name_hash, nameval_hash;
+    struct lsxpack_header xhdr;
     unsigned id;
 
-    name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
-    nameval_hash = XXH32(val, val_len, name_hash);
+    lsxpack_header_set_ptr(&xhdr, name, name_len, val, val_len);
+    xhdr.name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
+    xhdr.nameval_hash = XXH32(val, val_len, xhdr.name_hash);
+    xhdr.flags |= LSXPACK_NAMEVAL_HASH | LSXPACK_NAME_HASH;
 
-    id = lshpack_enc_get_static_nameval(nameval_hash, name, name_len,
-                                                            val, val_len);
+    id = lshpack_enc_get_static_nameval(&xhdr);
     if (id)
     {
         *val_matched = 1;
         return id;
     }
 
-    id = lshpack_enc_get_static_name(name_hash, name, name_len);
+    id = lshpack_enc_get_static_name(&xhdr);
     if (id)
     {
         *val_matched = 0;
@@ -335,16 +336,16 @@ test_hpack_test_RFC_Example (void)
 
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST(":status"),
                            STR_TO_IOVEC_TEST("302"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("cache-control"),
                            STR_TO_IOVEC_TEST("private"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("date"),
                            STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:21 GMT"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("location"),
                            STR_TO_IOVEC_TEST("https://www.example.com"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     displayHeader(respBuf, pBuf - respBuf);
     printTable(&henc);
     char bufSample1[] =
@@ -358,19 +359,19 @@ test_hpack_test_RFC_Example (void)
     pBuf = respBuf;
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST(":status"),
                            STR_TO_IOVEC_TEST("307"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("cache-control"),
                            STR_TO_IOVEC_TEST("private"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("date"),
                            STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:21 GMT"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("location"),
                            STR_TO_IOVEC_TEST("https://www.example.com"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     displayHeader(respBuf, pBuf - respBuf);
     printTable(&henc);
     char bufSample2[] = "\x48\x83\x64\x0e\xff\xc1\xc0\xbf";
@@ -379,27 +380,27 @@ test_hpack_test_RFC_Example (void)
     pBuf = respBuf;
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST(":status"),
                            STR_TO_IOVEC_TEST("200"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("cache-control"),
                            STR_TO_IOVEC_TEST("private"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("date"),
                            STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:22 GMT"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("location"),
                            STR_TO_IOVEC_TEST("https://www.example.com"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("content-encoding"),
                            STR_TO_IOVEC_TEST("gzip"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("set-cookie"),
             STR_TO_IOVEC_TEST("foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1"));
-    pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
+    pBuf = lshpack_enc_encode(&henc, pBuf, respBufEnd, &hdr, 0);
     printTable(&henc);
     displayHeader(respBuf, pBuf - respBuf);
 
@@ -490,7 +491,7 @@ encode2_wrapper (struct lshpack_enc *enc, unsigned char *dst,
     struct lsxpack_header xhdr;
 
     lsxpack_header_set_ptr(&xhdr, name, name_len, value, value_len);
-    return lshpack_enc_encode2(enc, dst, dst_end, &xhdr);
+    return lshpack_enc_encode(enc, dst, dst_end, &xhdr, 0);
 }
 
 
@@ -775,6 +776,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
     struct lshpack_enc henc;
     lshpack_enc_init(&henc);
     struct lshpack_dec hdec;
+    struct lsxpack_header xhdr;
     lshpack_dec_init(&hdec, s_http1x_mode ? LSHPACK_DEC_HTTP1X : 0);
     int nCount = sizeof(g_hpack_dyn_init_table_t) / sizeof(struct table_elem);
     int i;
@@ -802,12 +804,15 @@ test_hpack_self_enc_dec_test_firefox_error (void)
         nameval_hash = XXH32(g_hpack_dyn_init_table_t[i].val,
                             g_hpack_dyn_init_table_t[i].val_len, name_hash);
 
-        lshpack_enc_push_entry(&henc,
-                name_hash, nameval_hash,
+        lsxpack_header_set_ptr(&xhdr, 
                 (char *)g_hpack_dyn_init_table_t[i].name,
                 g_hpack_dyn_init_table_t[i].name_len,
                 (char *)g_hpack_dyn_init_table_t[i].val,
                 g_hpack_dyn_init_table_t[i].val_len);
+        xhdr.name_hash = name_hash;
+        xhdr.nameval_hash = nameval_hash;
+        xhdr.flags |= LSXPACK_NAMEVAL_HASH | LSXPACK_NAME_HASH;
+        lshpack_enc_push_entry(&henc, &xhdr);
 
     }
     printTable(&henc);
@@ -827,7 +832,6 @@ test_hpack_self_enc_dec_test_firefox_error (void)
 
     //AutoBuf autoBuf(2048);
     char out[2048];
-    struct lsxpack_header xhdr;
 
     unsigned char *pBuf = respBuf;
     respBufEnd = respBuf + 8192;
@@ -1243,8 +1247,8 @@ test_header_arr (void)
                 (unsigned) header_arr[i].name.iov_len,
             header_arr[i].value.iov_base,
                 (unsigned) header_arr[i].value.iov_len);
-        end = lshpack_enc_encode2(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
-                                  &hdr);
+        end = lshpack_enc_encode(&henc, tmp_buf, tmp_buf + sizeof(tmp_buf),
+                                  &hdr, 0);
         assert(end > tmp_buf);
         if (end - tmp_buf > (intptr_t) compressed.nalloc - (intptr_t) compressed.sz)
         {
@@ -1499,8 +1503,8 @@ test_hdec_boundary (void)
         lsxpack_header_set_ptr(&xhdr,
                         header->name.iov_base, header->name.iov_len,
                         header->value.iov_base, header->value.iov_len);
-        p = lshpack_enc_encode2(&henc, encbuf + enc_sz,
-                                        encbuf + sizeof(encbuf), &xhdr);
+        p = lshpack_enc_encode(&henc, encbuf + enc_sz,
+                                        encbuf + sizeof(encbuf), &xhdr, 0);
         assert(p > encbuf + enc_sz);
         enc_sz = p - encbuf;
     }

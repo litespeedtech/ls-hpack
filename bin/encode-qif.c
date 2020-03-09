@@ -229,7 +229,8 @@ main (int argc, char **argv)
                 header = &hset->headers[i];
                 lsxpack_header_set_ptr(&hdr, header->name, header->name_len,
                                        header->val, header->val_len);
-                s = lshpack_enc_encode2(&encoder, buf, buf + sizeof(buf), &hdr);
+                s = lshpack_enc_encode(&encoder, buf, buf + sizeof(buf),
+                                                                    &hdr, 0);
                 if (s <= buf)
                 {
                     fprintf(stderr, "cannot encode\n");
