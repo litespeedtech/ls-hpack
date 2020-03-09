@@ -116,7 +116,10 @@ static inline void lsxpack_header_prepare_decode(lsxpack_header_t *hdr,
     memset(hdr, 0, sizeof(*hdr));
     hdr->buf = out;
     hdr->name_offset = offset;
-    hdr->val_len = len;
+    if (len > LSXPACK_MAX_STRLEN)
+        hdr->val_len = LSXPACK_MAX_STRLEN;
+    else
+        hdr->val_len = len;
 }
 
 
