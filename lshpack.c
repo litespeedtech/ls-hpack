@@ -221,7 +221,9 @@ struct lshpack_double_enc_head
 
 struct lshpack_enc_table_entry
 {
-    /* An entry always lives on all three lists */
+    /* An entry always lives on the `all' and `nameval' lists.  If its name
+     * is not in the static table, it also lives on the `name' list.
+     */
     STAILQ_ENTRY(lshpack_enc_table_entry)
                                     ete_next_nameval,
                                     ete_next_name,
@@ -806,8 +808,8 @@ henc_drop_oldest_entry (struct lshpack_enc *enc)
     assert(entry == STAILQ_FIRST(&enc->hpe_buckets[buckno].by_nameval));
     STAILQ_REMOVE_HEAD(&enc->hpe_buckets[buckno].by_nameval, ete_next_nameval);
     buckno = BUCKNO(enc->hpe_nbits, entry->ete_name_hash);
-    assert(entry == STAILQ_FIRST(&enc->hpe_buckets[buckno].by_name));
-    STAILQ_REMOVE_HEAD(&enc->hpe_buckets[buckno].by_name, ete_next_name);
+    if (entry == STAILQ_FIRST(&enc->hpe_buckets[buckno].by_name))
+        STAILQ_REMOVE_HEAD(&enc->hpe_buckets[buckno].by_name, ete_next_name);
 
     enc->hpe_cur_capacity -= DYNAMIC_ENTRY_OVERHEAD + entry->ete_name_len
                                                         + entry->ete_val_len;
