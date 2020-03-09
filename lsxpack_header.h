@@ -32,6 +32,41 @@ enum lsxpack_flag
     LSXPACK_NEVER_INDEX = 64,
 };
 
+
+/**
+ * When headers are processed, various errors may occur.  They are listed
+ * in this enum.
+ */
+enum lsxpack_hdr_status
+{
+    LSXPACK_HDR_OK,
+    /** Duplicate pseudo-header */
+    LSXPACK_HDR_ERR_DUPLICATE_PSDO_HDR,
+    /** Not all request pseudo-headers are present */
+    LSXPACK_HDR_ERR_INCOMPL_REQ_PSDO_HDR,
+    /** Unnecessary request pseudo-header present in the response */
+    LSXPACK_HDR_ERR_UNNEC_REQ_PSDO_HDR,
+    /** Prohibited header in request */
+    LSXPACK_HDR_ERR_BAD_REQ_HEADER,
+    /** Not all response pseudo-headers are present */
+    LSXPACK_HDR_ERR_INCOMPL_RESP_PSDO_HDR,
+    /** Unnecessary response pseudo-header present in the response. */
+    LSXPACK_HDR_ERR_UNNEC_RESP_PSDO_HDR,
+    /** Unknown pseudo-header */
+    LSXPACK_HDR_ERR_UNKNOWN_PSDO_HDR,
+    /** Uppercase letter in header */
+    LSXPACK_HDR_ERR_UPPERCASE_HEADER,
+    /** Misplaced pseudo-header */
+    LSXPACK_HDR_ERR_MISPLACED_PSDO_HDR,
+    /** Missing pseudo-header */
+    LSXPACK_HDR_ERR_MISSING_PSDO_HDR,
+    /** Header or headers are too large */
+    LSXPACK_HDR_ERR_HEADERS_TOO_LARGE,
+    /** Cannot allocate any more memory. */
+    LSXPACK_HDR_ERR_NOMEM,
+};
+
+
 /**
  * When header are decoded, it should be stored to @buf starting from @name_offset,
  *    <name>: <value>\r\n
