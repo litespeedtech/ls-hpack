@@ -382,7 +382,7 @@ test_hpack_test_RFC_Example (void)
     pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("date"),
-                           STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:21 GMT"));
+                           STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:22 GMT"));
     pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("location"),
