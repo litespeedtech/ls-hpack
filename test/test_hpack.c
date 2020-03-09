@@ -49,6 +49,8 @@ static struct http_header header_arr[N_HEADERS];
 
 #define STR_AND_LEN(a) (a), (sizeof(a) -1)
 
+#define IOV(v) { .iov_base = (v), .iov_len = sizeof(v) - 1, }
+
 struct table_elem
 {
     const char *name;
@@ -1458,6 +1460,67 @@ test_hdec_static_idx_0 (void)
 }
 
 
+/* Test that the decoder does not write past end of buffer */
+static void
+test_hdec_boundary (void)
+{
+    struct lshpack_enc henc;
+    struct lshpack_dec hdec;
+    struct lsxpack_header xhdr;
+    const struct {
+        struct iovec name;
+        struct iovec value;
+    } headers[] = {
+        { .name = IOV("dude"), .value = IOV("where is my car?"), },
+    }, *header;
+    size_t enc_sz, sz, out_sz;
+    unsigned n;
+    int rc;
+    const unsigned char *p, *orig_p;
+    unsigned char encbuf[0x100];
+    char out[0x100];
+
+    lshpack_enc_init(&henc);
+    enc_sz = 0;
+    for (header = headers; header < headers + sizeof(headers)
+                                            / sizeof(headers[0]); ++header)
+    {
+        lsxpack_header_set_ptr(&xhdr,
+                        header->name.iov_base, header->name.iov_len,
+                        header->value.iov_base, header->value.iov_len);
+        p = lshpack_enc_encode2(&henc, encbuf + enc_sz,
+                                        encbuf + sizeof(encbuf), &xhdr);
+        assert(p > encbuf + enc_sz);
+        enc_sz += p - encbuf;
+    }
+    lshpack_enc_cleanup(&henc);
+
+    lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
+    p = encbuf;
+    for (n = 0; n < sizeof(headers) / sizeof(headers[0]); ++n)
+    {
+        out_sz = headers[n].name.iov_len + headers[n].value.iov_len
+            + (s_http1x_mode ? 4 : 0);
+        /* Inside this loop, there is not enough room for output, should
+         * return an error:
+         */
+        for (sz = 0; sz < out_sz; ++sz)
+        {
+            lsxpack_header_prepare_decode(&xhdr, out, 0, sz);
+            orig_p = p;
+            rc = lshpack_dec_decode2(&hdec, &p, encbuf + enc_sz, &xhdr);
+            assert(rc < 0);
+            p = orig_p;
+        }
+        lsxpack_header_prepare_decode(&xhdr, out, 0, sz);
+        rc = lshpack_dec_decode2(&hdec, &p, encbuf + enc_sz, &xhdr);
+        assert(rc == 0);
+    }
+    lshpack_dec_cleanup(&hdec);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1495,12 +1558,11 @@ main (int argc, char **argv)
     test_huff_dec_bad_eos();
 #endif
     test_hdec_static_idx_0();
+    test_hdec_boundary();
 
     return 0;
 }
 
-
-#define IOV(v) { .iov_base = (v), .iov_len = sizeof(v) - 1, }
 
 /* This list is hardcoded to make the test deterministic */
 static struct http_header header_arr[N_HEADERS] =
