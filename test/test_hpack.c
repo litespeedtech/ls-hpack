@@ -14,6 +14,8 @@
 #include "lshpack-test.h"
 #include "xxhash.h"
 
+static int s_http1x_mode;
+
 int
 lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                                     unsigned char *dst, int dst_len);
@@ -324,6 +326,7 @@ test_hpack_test_RFC_Example (void)
     lshpack_enc_set_max_capacity(&henc, 256);
 
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     lshpack_dec_set_max_capacity(&hdec, 256);
 
     unsigned char *pBuf = respBuf;
@@ -382,7 +385,7 @@ test_hpack_test_RFC_Example (void)
     pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("date"),
-                           STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:21 GMT"));
+                           STR_TO_IOVEC_TEST("Mon, 21 Oct 2013 20:13:22 GMT"));
     pBuf = lshpack_enc_encode2(&henc, pBuf, respBufEnd, &hdr);
     printTable(&henc);
     lsxpack_header_set_ptr(&hdr, STR_TO_IOVEC_TEST("location"),
@@ -498,6 +501,7 @@ test_decode_limits (void)
     lshpack_enc_cleanup(&henc);
 
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
 
     for (n = 0; n < sizeof(enough) / sizeof(enough[0]); ++n)
     {
@@ -538,6 +542,7 @@ test_hpack_self_enc_dec_test (void)
     lshpack_enc_init(&henc);
     struct lshpack_dec hdec;
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     const unsigned char *pSrc = respBuf;
     const unsigned char *bufEnd;
     int rc;
@@ -709,6 +714,7 @@ test_hpack_encode_and_decode (void)
 
     struct lshpack_dec hdec;
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
 
     char out[1000];
 
@@ -748,6 +754,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
     lshpack_enc_init(&henc);
     struct lshpack_dec hdec;
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     int nCount = sizeof(g_hpack_dyn_init_table_t) / sizeof(struct table_elem);
     int i;
     for (i = nCount - 1; i >= 0; --i)
@@ -843,6 +850,7 @@ test_hdec_table_size_updates (void)
         unsigned const char buf[] = { 0x20 | 0x1E, 0x88 };
         src = buf;
         lshpack_dec_init(&hdec);
+        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
         lshpack_dec_set_max_capacity(&hdec, 0x11);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
@@ -857,6 +865,7 @@ test_hdec_table_size_updates (void)
         unsigned const char buf[] = { 0x20 | 0x1E, 0x88 };
         src = buf;
         lshpack_dec_init(&hdec);
+        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s == 0);
@@ -880,6 +889,7 @@ test_hdec_table_size_updates (void)
         };
         src = buf;
         lshpack_dec_init(&hdec);
+        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s == 0);
@@ -894,6 +904,7 @@ test_hdec_table_size_updates (void)
         unsigned const char buf[] = { 0x20 | 0x1E, };
         src = buf;
         lshpack_dec_init(&hdec);
+        lshpack_dec_set_http1x(&hdec, s_http1x_mode);
         s = lshpack_dec_decode(&hdec, &src, src + sizeof(buf), outbuf,
                             outbuf + sizeof(outbuf), &name_len, &val_len);
         assert(s < 0);
@@ -988,6 +999,7 @@ test_henc_nonascii (void)
     lshpack_enc_cleanup(&henc);
 
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1029,6 +1041,7 @@ test_henc_long_compressable (void)
     lshpack_enc_cleanup(&henc);
 
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1077,6 +1090,7 @@ test_henc_long_uncompressable (void)
     lshpack_enc_cleanup(&henc);
 
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     src = comp;
     s = lshpack_dec_decode(&hdec, &src, end, uncomp, uncomp + sizeof(uncomp),
                                                         &name_len, &val_len);
@@ -1236,6 +1250,7 @@ test_header_arr (void)
 
     /* Now decompress them and compare with originals: */
     lshpack_dec_init(&hdec);
+    lshpack_dec_set_http1x(&hdec, s_http1x_mode);
     comp = compressed.buf;
     end = compressed.buf + compressed.sz;
     for (i = 0; comp < end; ++i)
@@ -1432,6 +1447,7 @@ test_hdec_static_idx_0 (void)
     char out[0x100];
 
     lshpack_dec_init(&dec);
+    lshpack_dec_set_http1x(&dec, s_http1x_mode);
 
     src = input;
     r = lshpack_dec_decode(&dec, &src, src + sizeof(input), out,
@@ -1445,6 +1461,9 @@ test_hdec_static_idx_0 (void)
 int
 main (int argc, char **argv)
 {
+    if (argc > 1 && atoi(argv[1]))
+        s_http1x_mode = 1;
+
     test_header_arr();
 
     /* Now do the same thing, but with longer codes to exercise the fallback

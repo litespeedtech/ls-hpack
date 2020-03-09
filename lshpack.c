@@ -1137,6 +1137,21 @@ lshpack_dec_init (struct lshpack_dec *dec)
 }
 
 
+int
+lshpack_dec_set_http1x (struct lshpack_dec *dec, int http1x_mode)
+{
+    int old;
+
+    old = (dec->hpd_flags & LSHPACK_DEC_HTTP1X) != 0;
+    if (http1x_mode)
+        dec->hpd_flags |= LSHPACK_DEC_HTTP1X;
+    else
+        dec->hpd_flags &= ~LSHPACK_DEC_HTTP1X;
+
+    return old;
+}
+
+
 void
 lshpack_dec_cleanup (struct lshpack_dec *dec)
 {
@@ -2072,33 +2087,40 @@ lshpack_enc_encode2 (struct lshpack_enc *enc, unsigned char *dst,
 
 static inline int
 lshpack_dec_copy_value (lsxpack_header_t *output, char *dest, const char *val,
-                       unsigned val_len)
+                       unsigned val_len, unsigned http1x)
 {
-    if (val_len + 2 > (unsigned)output->val_len)
+    assert(http1x == 0 || http1x == 2);
+    if (val_len + http1x > (unsigned)output->val_len)
         return -1;
-    output->val_offset = output->name_offset + output->name_len + 2;
+    output->val_offset = output->name_offset + output->name_len + http1x;
     assert(dest == output->buf + output->val_offset);
     output->val_len = val_len;
     memcpy(dest, val, output->val_len);
     dest += output->val_len;
-    *dest++ = '\r';
-    *dest++ = '\n';
+    if (http1x)
+    {
+        *dest++ = '\r';
+        *dest++ = '\n';
+    }
     return 0;
 }
 
 
 static inline int
 lshpack_dec_copy_name (lsxpack_header_t *output, char **dest, const char *name,
-                       unsigned name_len)
+                       unsigned name_len, int http1x)
 {
-    if (name_len + 2 > (unsigned)output->val_len)
+    if (name_len + http1x > (unsigned)output->val_len)
         return -1;
-    output->val_len -= name_len + 2;
+    output->val_len -= name_len + http1x;
     output->name_len = name_len;
     memcpy(*dest, name, name_len);
     *dest += name_len;
-    *(*dest)++ = ':';
-    *(*dest)++ = ' ';
+    if (http1x)
+    {
+        *(*dest)++ = ':';
+        *(*dest)++ = ' ';
+    }
     return 0;
 }
 
@@ -2120,6 +2142,7 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
     struct dec_table_entry *entry;
     uint32_t index, new_capacity;
     int indexed_type, len;
+    unsigned http1x;
 
     if ((*src) == src_end)
         return -1;
@@ -2197,6 +2220,7 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
         output->flags |= LSXPACK_HPACK_IDX;
     }
 
+    http1x = ((dec->hpd_flags & LSHPACK_DEC_HTTP1X) != 0) << 1; /* 0 or 2 */
     char *name = output->buf + output->name_offset;
     if (index > 0)
     {
@@ -2204,13 +2228,13 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
         {
             if (lshpack_dec_copy_name(output, &name,
                     static_table[index - 1].name,
-                    static_table[index - 1].name_len) == -1)
+                    static_table[index - 1].name_len, http1x) == -1)
                 return -1;
 
             if (indexed_type == LSHPACK_VAL_INDEX)
                 return lshpack_dec_copy_value(output, name,
-                                              static_table[index - 1].val,
-                                              static_table[index - 1].val_len);
+                                  static_table[index - 1].val,
+                                  static_table[index - 1].val_len, http1x);
         }
         else
         {
@@ -2218,7 +2242,7 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
             if (entry == NULL)
                 return -1;
             if (lshpack_dec_copy_name(output, &name,
-                    DTE_NAME(entry), entry->dte_name_len) == -1)
+                    DTE_NAME(entry), entry->dte_name_len, http1x) == -1)
                 return -1;
 
             if (entry->dte_name_idx)
@@ -2229,7 +2253,7 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
 
             if (indexed_type == LSHPACK_VAL_INDEX)
                 return lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
-                                              entry->dte_val_len);
+                                              entry->dte_val_len, http1x);
         }
     }
     else
@@ -2242,9 +2266,12 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
             return -2;
         output->name_len = len;
         name += output->name_len;
-        *name++ = ':';
-        *name++ = ' ';
-        output->val_len -= len + 2;
+        if (http1x)
+        {
+            *name++ = ':';
+            *name++ = ' ';
+        }
+        output->val_len -= len + http1x;
     }
 
     len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
@@ -2252,15 +2279,17 @@ lshpack_dec_decode2 (struct lshpack_dec *dec,
         return len; //error
     if (len > UINT16_MAX)
         return -2;
-    output->val_offset = output->name_offset + output->name_len + 2;
+    output->val_offset = output->name_offset + output->name_len + http1x;
     output->val_len = len;
-    memcpy(name + len, "\r\n", 2);
+    if (http1x)
+        memcpy(name + len, "\r\n", 2);
 
     if (indexed_type == LSHPACK_ADD_INDEX)
     {
         if (index > HPACK_STATIC_TABLE_SIZE)
             index = 0;
-        if (0 != lshpack_dec_push_entry(dec, index, name - output->name_len - 2,
+        if (0 != lshpack_dec_push_entry(dec, index,
+                            name - output->name_len - http1x,
                             output->name_len, name , output->val_len))
             return -1;  //error
     }
