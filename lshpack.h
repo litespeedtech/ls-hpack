@@ -137,7 +137,7 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-        unsigned char *dst_end, struct lsxpack_header *, int indexed_type);
+        unsigned char *dst_end, struct lsxpack_header *);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);

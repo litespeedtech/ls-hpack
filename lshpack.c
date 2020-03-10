@@ -1051,7 +1051,7 @@ henc_hist_add (struct lshpack_enc *enc, uint32_t nameval_hash)
 
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
-        unsigned char *dst_end, lsxpack_header_t *input, int indexed_type)
+        unsigned char *dst_end, lsxpack_header_t *input)
 {
     //indexed_type: 0, Add, 1,: without, 2: never
     static const char indexed_prefix_number[] = {0x40, 0x00, 0x10};
@@ -1071,13 +1071,13 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     else
     {
         if (input->flags & LSXPACK_NEVER_INDEX)
-            indexed_type = 2;
+            input->indexed_type = 2;
         table_id = henc_find_table_id(enc, input);
         if (enc->hpe_hist_buf)
         {
             rc = henc_hist_add(enc, input->nameval_hash);
-            if (!rc && enc->hpe_hist_wrapped && indexed_type == 0)
-                indexed_type = 1;
+            if (!rc && enc->hpe_hist_wrapped && input->indexed_type == 0)
+                input->indexed_type = 1;
         }
     }
 
@@ -1094,16 +1094,16 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
         }
         else
         {
-            *dst = indexed_prefix_number[indexed_type];
+            *dst = indexed_prefix_number[input->indexed_type];
             dst = lshpack_enc_enc_int(dst, dst_end, table_id,
-                                            ((indexed_type == 0) ? 6 : 4));
+                                      ((input->indexed_type == 0) ? 6 : 4));
             if (dst == dst_org)
                 return dst_org;
         }
     }
     else
     {
-        *dst++ = indexed_prefix_number[indexed_type];
+        *dst++ = indexed_prefix_number[input->indexed_type];
         rc = lshpack_enc_enc_str(dst, dst_end - dst,
                                  (const unsigned char *)input->name_ptr,
                                  input->name_len);
@@ -1119,7 +1119,7 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
         return dst_org; //Failed to enc this header, return unchanged ptr.
     dst += rc;
 
-    if (indexed_type == 0)
+    if (input->indexed_type == 0)
     {
         rc = lshpack_enc_push_entry(enc, input);
         if (rc != 0)

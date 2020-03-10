@@ -90,6 +90,7 @@ struct lsxpack_header
     uint8_t           qpack_index;  /* QPACK static table index */
     uint8_t           app_index;    /* APP header index */
     enum lsxpack_flag flags:8;      /* combination of lsxpack_flag */
+    uint8_t           indexed_type; /* control to disable index or not */
 };
 
 typedef struct lsxpack_header lsxpack_header_t;
