@@ -1,5 +1,5 @@
-#ifndef LSXPACK_HEADER_H_v202
-#define LSXPACK_HEADER_H_v202
+#ifndef LSXPACK_HEADER_H_v203
+#define LSXPACK_HEADER_H_v203
 
 #ifdef __cplusplus
 extern "C" {
@@ -56,6 +56,7 @@ struct lsxpack_header
     uint8_t           app_index;    /* APP header index */
     enum lsxpack_flag flags:8;      /* combination of lsxpack_flag */
     uint8_t           indexed_type; /* control to disable index or not */
+    uint8_t           dec_overhead; /* num of extra bytes written to decoded buffer */
 };
 
 typedef struct lsxpack_header lsxpack_header_t;
@@ -152,9 +153,12 @@ static inline const char *
 lsxpack_header_get_value(const lsxpack_header_t *hdr)
 {   return hdr->buf + hdr->val_offset;  }
 
+static inline size_t
+lsxpack_header_get_dec_size(const lsxpack_header_t *hdr)
+{   return hdr->name_len + hdr->val_len + hdr->dec_overhead;    }
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif //LSXPACK_HEADER_H_v202
+#endif //LSXPACK_HEADER_H_v203

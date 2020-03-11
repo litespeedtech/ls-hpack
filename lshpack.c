@@ -1736,6 +1736,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     }
 decode_end:
     *src = s;
+    output->dec_overhead = http1x * 2;
     return 0;
 need_more_buf:
     buf_len += extra_buf;
