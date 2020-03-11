@@ -29,17 +29,90 @@ SOFTWARE.
 extern "C" {
 #endif
 
+#include <limits.h>
 #include <stdint.h>
+#include <lsxpack_header.h>
 
-#define LSHPACK_MAJOR_VERSION 1
-#define LSHPACK_MINOR_VERSION 3
-#define LSHPACK_PATCH_VERSION 1
+#define LSHPACK_MAJOR_VERSION 2
+#define LSHPACK_MINOR_VERSION 0
+#define LSHPACK_PATCH_VERSION 0
 
-/** Maximum length is defined for convenience */
-#define LSHPACK_MAX_STRLEN UINT_MAX
+#define lshpack_strlen_t lsxpack_strlen_t
+#define LSHPACK_MAX_STRLEN LSXPACK_MAX_STRLEN
 
 struct lshpack_enc;
 struct lshpack_dec;
+
+enum lshpack_static_hdr_idx
+{
+    LSHPACK_HDR_UNKNOWN,
+    LSHPACK_HDR_AUTHORITY,
+    LSHPACK_HDR_METHOD_GET,
+    LSHPACK_HDR_METHOD_POST,
+    LSHPACK_HDR_PATH,
+    LSHPACK_HDR_PATH_INDEX_HTML,
+    LSHPACK_HDR_SCHEME_HTTP,
+    LSHPACK_HDR_SCHEME_HTTPS,
+    LSHPACK_HDR_STATUS_200,
+    LSHPACK_HDR_STATUS_204,
+    LSHPACK_HDR_STATUS_206,
+    LSHPACK_HDR_STATUS_304,
+    LSHPACK_HDR_STATUS_400,
+    LSHPACK_HDR_STATUS_404,
+    LSHPACK_HDR_STATUS_500,
+    LSHPACK_HDR_ACCEPT_CHARSET,
+    LSHPACK_HDR_ACCEPT_ENCODING,
+    LSHPACK_HDR_ACCEPT_LANGUAGE,
+    LSHPACK_HDR_ACCEPT_RANGES,
+    LSHPACK_HDR_ACCEPT,
+    LSHPACK_HDR_ACCESS_CONTROL_ALLOW_ORIGIN,
+    LSHPACK_HDR_AGE,
+    LSHPACK_HDR_ALLOW,
+    LSHPACK_HDR_AUTHORIZATION,
+    LSHPACK_HDR_CACHE_CONTROL,
+    LSHPACK_HDR_CONTENT_DISPOSITION,
+    LSHPACK_HDR_CONTENT_ENCODING,
+    LSHPACK_HDR_CONTENT_LANGUAGE,
+    LSHPACK_HDR_CONTENT_LENGTH,
+    LSHPACK_HDR_CONTENT_LOCATION,
+    LSHPACK_HDR_CONTENT_RANGE,
+    LSHPACK_HDR_CONTENT_TYPE,
+    LSHPACK_HDR_COOKIE,
+    LSHPACK_HDR_DATE,
+    LSHPACK_HDR_ETAG,
+    LSHPACK_HDR_EXPECT,
+    LSHPACK_HDR_EXPIRES,
+    LSHPACK_HDR_FROM,
+    LSHPACK_HDR_HOST,
+    LSHPACK_HDR_IF_MATCH,
+    LSHPACK_HDR_IF_MODIFIED_SINCE,
+    LSHPACK_HDR_IF_NONE_MATCH,
+    LSHPACK_HDR_IF_RANGE,
+    LSHPACK_HDR_IF_UNMODIFIED_SINCE,
+    LSHPACK_HDR_LAST_MODIFIED,
+    LSHPACK_HDR_LINK,
+    LSHPACK_HDR_LOCATION,
+    LSHPACK_HDR_MAX_FORWARDS,
+    LSHPACK_HDR_PROXY_AUTHENTICATE,
+    LSHPACK_HDR_PROXY_AUTHORIZATION,
+    LSHPACK_HDR_RANGE,
+    LSHPACK_HDR_REFERER,
+    LSHPACK_HDR_REFRESH,
+    LSHPACK_HDR_RETRY_AFTER,
+    LSHPACK_HDR_SERVER,
+    LSHPACK_HDR_SET_COOKIE,
+    LSHPACK_HDR_STRICT_TRANSPORT_SECURITY,
+    LSHPACK_HDR_TRANSFER_ENCODING,
+    LSHPACK_HDR_USER_AGENT,
+    LSHPACK_HDR_VARY,
+    LSHPACK_HDR_VIA,
+    LSHPACK_HDR_WWW_AUTHENTICATE
+};
+
+#define LSHPACK_ERR_MORE_BUF        (-3)
+#define LSHPACK_ERR_TOO_LARGE       (-2)
+#define LSHPACK_ERR_BAD_DATA        (-1)
+#define LSHPACK_OK                  (0)
 
 /**
  * Initialization routine allocates memory.  -1 is returned if memory
@@ -60,19 +133,14 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  * @param[in,out] henc - A pointer to a valid HPACK API struct
  * @param[out] dst - A pointer to destination buffer
  * @param[out] dst_end - A pointer to end of destination buffer
- * @param[in] name - A pointer to the item name
- * @param[in] name_len - The item name's length
- * @param[in] value - A pointer to the item value
- * @param[in] value_len - The item value's length
- * @param[in] indexed_type - 0, Add, 1,: without, 2: never
+ * @param[in] input - Header to encode
  *
  * @return The (possibly advanced) dst pointer.  If the destination
  * pointer was not advanced, an error must have occurred.
  */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-    unsigned char *dst_end, const char *name, unsigned name_len,
-    const char *value, unsigned value_len, int indexed_type);
+        unsigned char *dst_end, struct lsxpack_header *input);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
@@ -91,11 +159,20 @@ lshpack_enc_use_hist (struct lshpack_enc *, int on);
 int
 lshpack_enc_hist_used (const struct lshpack_enc *);
 
+enum lshpack_dec_flags {
+    /**
+     * Turn HTTP/1.x mode on or off.  In this mode, decoded name and value
+     * pair are separated by ": " and "\r\n" is appended to the end of the
+     * string.  By default, this mode is off.
+     */
+    LSHPACK_DEC_HTTP1X  = 1 << 1,
+};
+
 /**
  * Initialize HPACK decoder structure.
  */
 void
-lshpack_dec_init (struct lshpack_dec *);
+lshpack_dec_init (struct lshpack_dec *, enum lshpack_dec_flags);
 
 /**
  * Clean up HPACK decoder structure, freeing all allocated memory.
@@ -108,12 +185,18 @@ lshpack_dec_cleanup (struct lshpack_dec *);
  *
  * If 0 is returned, `src' is advanced.  Calling with a zero-length input
  * buffer results in an error.
+ *
+ * To calculate number of bytes written to the output buffer:
+ *  output->name_len + output->val_len + lshpack_dec_extra_bytes(dec)
  */
 int
 lshpack_dec_decode (struct lshpack_dec *dec,
     const unsigned char **src, const unsigned char *src_end,
-    char *dst, char *const dst_end, unsigned *name_len,
-    unsigned *val_len);
+    struct lsxpack_header *output);
+
+/* Return number of extra bytes per header */
+#define lshpack_dec_extra_bytes(dec_) ( \
+    (dec_)->hpd_flags & LSHPACK_DEC_HTTP1X ? 4 : 0)
 
 void
 lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
@@ -169,14 +252,18 @@ struct lshpack_arr
 
 struct lshpack_dec
 {
+    struct lshpack_arr hpd_dyn_table;
+    enum lshpack_dec_flags
+                       hpd_flags;
     unsigned           hpd_max_capacity;       /* Maximum set by caller */
     unsigned           hpd_cur_max_capacity;   /* Adjusted at runtime */
     unsigned           hpd_cur_capacity;
-    struct lshpack_arr hpd_dyn_table;
+    unsigned           hpd_state;
 };
 
-/* Used for compatibility: this typedef is deprecated */
-typedef unsigned lshpack_strlen_t;
+/* This function may update hash values and flags */
+unsigned
+lshpack_enc_get_stx_tab_id (struct lsxpack_header *);
 
 #ifdef __cplusplus
 }

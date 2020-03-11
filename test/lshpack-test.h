@@ -13,17 +13,13 @@ struct enc_dyn_table_entry
 };
 
 unsigned
-lshpack_enc_get_static_name (uint32_t name_hash, const char *name,
-                                            unsigned name_len);
+lshpack_enc_get_static_name (const struct lsxpack_header *);
 
 unsigned
-lshpack_enc_get_static_nameval (uint32_t nameval_hash, const char *name,
-        unsigned name_len, const char *val, unsigned val_len);
+lshpack_enc_get_static_nameval (const struct lsxpack_header *);
 
 int
-lshpack_enc_push_entry (struct lshpack_enc *enc, uint32_t name_hash,
-    uint32_t nameval_hash, const char *name, unsigned name_len,
-    const char *value, unsigned value_len);
+lshpack_enc_push_entry (struct lshpack_enc *enc, const struct lsxpack_header *);
 
 int
 lshpack_enc_enc_str (unsigned char *const dst, size_t dst_len,
@@ -43,7 +39,7 @@ int
 lshpack_dec_dec_int (const unsigned char **src, const unsigned char *src_end,
                                         unsigned prefix_bits, uint32_t *value);
 int
-lshpack_dec_push_entry (struct lshpack_dec *dec, const char *name,
+lshpack_dec_push_entry (struct lshpack_dec *dec, uint8_t name_idx, const char *name,
                         unsigned name_len, const char *val,
                         unsigned val_len);
 
