@@ -1352,12 +1352,12 @@ lshpack_dec_huff_decode_full (const unsigned char *src, int src_len,
     while (p_src != src_end)
     {
         if (p_dst == dst_end)
-            return -2;
+            return LSHPACK_ERR_MORE_BUF;
         if ((p_dst = hdec_huff_dec4bits(*p_src >> 4, p_dst, &status))
                 == NULL)
             return -1;
         if (p_dst == dst_end)
-            return -2;
+            return LSHPACK_ERR_MORE_BUF;
         if ((p_dst = hdec_huff_dec4bits(*p_src & 0xf, p_dst, &status))
                 == NULL)
             return -1;
@@ -1390,25 +1390,29 @@ hdec_dec_str (unsigned char *dst, size_t dst_len, const unsigned char **src,
     int is_huffman = (*(*src) & 0x80);
     uint32_t len;
     if (0 != lshpack_dec_dec_int(src, src_end, 7, &len))
-        return -2;  //wrong int
+        return LSHPACK_ERR_BAD_DATA;  //wrong int
 
     int ret = 0;
     if ((uint32_t)(src_end - (*src)) < len) {
-        return -2;  //wrong int
+        return LSHPACK_ERR_BAD_DATA;  //wrong int
     }
 
     if (is_huffman)
     {
         ret = lshpack_dec_huff_decode(*src, len, dst, dst_len);
         if (ret < 0)
-            return -3; //Wrong code
+            return ret; //Wrong code
 
         (*src) += len;
     }
     else
     {
         if (dst_len < len)
-            ret = -3;  //dst not enough space
+        {
+            ret = dst_len - len;
+            if (ret > LSHPACK_ERR_MORE_BUF)
+                ret = LSHPACK_ERR_MORE_BUF;  //dst not enough space
+        }
         else
         {
             memcpy(dst, (*src), len);
@@ -1476,7 +1480,7 @@ lshpack_dec_copy_value (lsxpack_header_t *output, char *dest, const char *val,
 {
     assert(http1x == 0 || http1x == 2);
     if (val_len + http1x > (unsigned)output->val_len)
-        return -1;
+        return LSHPACK_ERR_MORE_BUF;
     output->val_offset = output->name_offset + output->name_len + http1x;
     assert(dest == output->buf + output->val_offset);
     output->val_len = val_len;
@@ -1496,7 +1500,7 @@ lshpack_dec_copy_name (lsxpack_header_t *output, char **dest, const char *name,
                        unsigned name_len, int http1x)
 {
     if (name_len + http1x > (unsigned)output->val_len)
-        return -1;
+        return LSHPACK_ERR_MORE_BUF;
     output->val_len -= name_len + http1x;
     output->name_len = name_len;
     memcpy(*dest, name, name_len);
@@ -1528,74 +1532,80 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     uint32_t index, new_capacity;
     int indexed_type, len;
     unsigned http1x;
+    const unsigned char *s;
+    size_t buf_len = output->val_len;
+    size_t extra_buf = 0;
 
     if ((*src) == src_end)
-        return -1;
+        return LSHPACK_ERR_BAD_DATA;
 
-    while ((*(*src) & 0xe0) == 0x20)    //001 xxxxx
+    buf_len = output->val_len;
+    extra_buf = 0;
+    s = *src;
+    while ((*s & 0xe0) == 0x20)    //001 xxxxx
     {
-        if (0 != lshpack_dec_dec_int(src, src_end, 5, &new_capacity))
-            return -1;
+        if (0 != lshpack_dec_dec_int(&s, src_end, 5, &new_capacity))
+            return LSHPACK_ERR_BAD_DATA;
         if (new_capacity > dec->hpd_max_capacity)
-            return -1;
+            return LSHPACK_ERR_BAD_DATA;
         hdec_update_max_capacity(dec, new_capacity);
-        if (*src == src_end)
-            return -1;
+        if (s == src_end)
+            return LSHPACK_ERR_BAD_DATA;
     }
 
     /* lshpack_dec_dec_int() sets `index' and advances `src'.  If we do not
      * call it, we set `index' and advance `src' ourselves:
      */
-    if (*(*src) & 0x80) //1 xxxxxxx
+    if (*s & 0x80) //1 xxxxxxx
     {
-        if (0 != lshpack_dec_dec_int(src, src_end, 7, &index))
-            return -1;
+        if (0 != lshpack_dec_dec_int(&s, src_end, 7, &index))
+            return LSHPACK_ERR_BAD_DATA;
         if (index == 0)
-            return -1;
+            return LSHPACK_ERR_BAD_DATA;
         indexed_type = LSHPACK_VAL_INDEX; //need to parse value
     }
-    else if (*(*src) > 0x40) //01 xxxxxx
+    else if (*s > 0x40) //01 xxxxxx
     {
-        if (0 != lshpack_dec_dec_int(src, src_end, 6, &index))
-            return -1;
+        if (0 != lshpack_dec_dec_int(&s, src_end, 6, &index))
+            return LSHPACK_ERR_BAD_DATA;
 
         indexed_type = LSHPACK_ADD_INDEX;
     }
-    else if (*(*src) == 0x40) //custmized //0100 0000
+    else if (*s == 0x40) //custmized //0100 0000
     {
         indexed_type = LSHPACK_ADD_INDEX;
         index = LSHPACK_HDR_UNKNOWN;
-        ++(*src);
+        ++s;
     }
 
     //Never indexed
-    else if (*(*src) == 0x10)  //00010000
+    else if (*s == 0x10)  //00010000
     {
         indexed_type = LSHPACK_NEVER_INDEX;
         output->flags |= LSXPACK_NEVER_INDEX;
         index = LSHPACK_HDR_UNKNOWN;
-        ++(*src);
+        ++s;
     }
-    else if ((*(*src) & 0xf0) == 0x10)  //0001 xxxx
+    else if ((*s & 0xf0) == 0x10)  //0001 xxxx
     {
-        if (0 != lshpack_dec_dec_int(src, src_end, 4, &index))
-            return -1;
+        if (0 != lshpack_dec_dec_int(&s, src_end, 4, &index))
+            return LSHPACK_ERR_BAD_DATA;
 
         indexed_type = LSHPACK_NEVER_INDEX;
         output->flags |= LSXPACK_NEVER_INDEX;
     }
 
     //without indexed
-    else if (*(*src) == 0x00)  //0000 0000
+    else if (*s == 0x00)  //0000 0000
     {
         indexed_type = LSHPACK_NO_INDEX;
         index = LSHPACK_HDR_UNKNOWN;
-        ++(*src);
+        ++s;
     }
     else // 0000 xxxx
     {
-        if (0 != lshpack_dec_dec_int(src, src_end, 4, &index))
-            return -1;
+        if (0 != lshpack_dec_dec_int(&s, src_end, 4, &index))
+            return LSHPACK_ERR_BAD_DATA;
 
         indexed_type = LSHPACK_NO_INDEX;
     }
@@ -1605,7 +1615,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         output->flags |= LSXPACK_HPACK_IDX;
     }
 
-    http1x = ((dec->hpd_flags & LSHPACK_DEC_HTTP1X) != 0) << 1; /* 0 or 2 */
+    http1x = dec->hpd_flags & LSHPACK_DEC_HTTP1X; /* 0 or 2 */
     char *name = output->buf + output->name_offset;
     if (index > 0)
     {
@@ -1613,22 +1623,36 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         {
             if (lshpack_dec_copy_name(output, &name,
                     static_table[index - 1].name,
-                    static_table[index - 1].name_len, http1x) == -1)
-                return -1;
+                    static_table[index - 1].name_len, http1x) == LSHPACK_ERR_MORE_BUF)
+            {
+                extra_buf = static_table[index - 1].name_len + http1x;
+                goto need_more_buf;
+            }
 
             if (indexed_type == LSHPACK_VAL_INDEX)
-                return lshpack_dec_copy_value(output, name,
+            {
+                if (lshpack_dec_copy_value(output, name,
                                   static_table[index - 1].val,
-                                  static_table[index - 1].val_len, http1x);
+                                  static_table[index - 1].val_len, http1x) == 0)
+                    goto decode_end;
+                else
+                {
+                    extra_buf = static_table[index - 1].val_len + http1x;
+                    goto need_more_buf;
+                }
+            }
         }
         else
         {
             entry = hdec_get_table_entry(dec, index);
             if (entry == NULL)
-                return -1;
-            if (lshpack_dec_copy_name(output, &name,
-                    DTE_NAME(entry), entry->dte_name_len, http1x) == -1)
-                return -1;
+                return LSHPACK_ERR_BAD_DATA;
+            if (lshpack_dec_copy_name(output, &name, DTE_NAME(entry),
+                    entry->dte_name_len, http1x) == LSHPACK_ERR_MORE_BUF)
+            {
+                extra_buf = entry->dte_name_len + http1x;
+                goto need_more_buf;
+            }
 
             if (entry->dte_name_idx)
                 output->hpack_index = entry->dte_name_idx;
@@ -1637,18 +1661,33 @@ lshpack_dec_decode (struct lshpack_dec *dec,
             output->flags |= LSXPACK_HPACK_IDX;
 
             if (indexed_type == LSHPACK_VAL_INDEX)
-                return lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
-                                              entry->dte_val_len, http1x);
+            {
+                if (lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
+                                           entry->dte_val_len, http1x) == 0)
+                    goto decode_end;
+                else
+                {
+                    extra_buf = entry->dte_val_len + http1x;
+                    goto need_more_buf;
+                }
+            }
         }
     }
     else
     {
         len = hdec_dec_str((unsigned char *)name, output->val_len,
-                           src, src_end);
+                           &s, src_end);
         if (len < 0)
+        {
+            if (len <= LSHPACK_ERR_MORE_BUF)
+            {
+                extra_buf = -len;
+                goto need_more_buf;
+            }
             return len; //error
-        if ((unsigned) len > LSXPACK_MAX_STRLEN)
-            return -2;
+        }
+        if (len > UINT16_MAX)
+            return LSHPACK_ERR_TOO_LARGE;
         output->name_len = len;
         name += output->name_len;
         if (http1x)
@@ -1659,22 +1698,29 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                 *name++ = ' ';
             }
             else
-                return -3;
+                return LSHPACK_ERR_MORE_BUF;
         }
         output->val_len -= len + http1x;
     }
 
-    len = hdec_dec_str((unsigned char *)name, output->val_len, src, src_end);
+    len = hdec_dec_str((unsigned char *)name, output->val_len, &s, src_end);
     if (len < 0)
+    {
+        if (len <= LSHPACK_ERR_MORE_BUF)
+        {
+            extra_buf = -len;
+            goto need_more_buf;
+        }
         return len; //error
-    if ((unsigned) len > LSXPACK_MAX_STRLEN)
-        return -2;
+    }
+    if (len > UINT16_MAX)
+        return LSHPACK_ERR_TOO_LARGE;
     if (http1x)
     {
         if ((unsigned) len + http1x <= output->val_len)
             memcpy(name + len, "\r\n", 2);
         else
-            return -3;
+            return LSHPACK_ERR_MORE_BUF;
     }
     output->val_offset = output->name_offset + output->name_len + http1x;
     output->val_len = len;
@@ -1686,10 +1732,15 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         if (0 != lshpack_dec_push_entry(dec, index,
                             name - output->name_len - http1x,
                             output->name_len, name , output->val_len))
-            return -1;  //error
+            return LSHPACK_ERR_BAD_DATA;  //error
     }
-
+decode_end:
+    *src = s;
     return 0;
+need_more_buf:
+    buf_len += extra_buf;
+    output->val_len = buf_len;
+    return LSHPACK_ERR_MORE_BUF;
 }
 
 
@@ -1822,7 +1873,12 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                     avail_bits -= hdec.lens >> 2;
                 }
                 else if (dst + len > dst_end)
-                    return -2;
+                {
+                    r = dst_end - dst - len;
+                    if (r > LSHPACK_ERR_MORE_BUF)
+                        r = LSHPACK_ERR_MORE_BUF;
+                    return r;
+                }
                 else
                     goto slow_path;
             }
@@ -1861,7 +1917,12 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             avail_bits -= hdec.lens >> 2;
         }
         else if (dst + len > dst_end)
-            return -2;
+        {
+            r = dst_end - dst - len;
+            if (r > LSHPACK_ERR_MORE_BUF)
+                r = LSHPACK_ERR_MORE_BUF;
+            return r;
+        }
         else
             /* This must be an invalid code, otherwise it would have fit */
             return -1;

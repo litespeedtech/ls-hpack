@@ -109,6 +109,10 @@ enum lshpack_static_hdr_idx
     LSHPACK_HDR_WWW_AUTHENTICATE
 };
 
+#define LSHPACK_ERR_MORE_BUF        (-3)
+#define LSHPACK_ERR_TOO_LARGE       (-2)
+#define LSHPACK_ERR_BAD_DATA        (-1)
+#define LSHPACK_OK                  (0)
 
 /**
  * Initialization routine allocates memory.  -1 is returned if memory
@@ -130,14 +134,13 @@ lshpack_enc_cleanup (struct lshpack_enc *);
  * @param[out] dst - A pointer to destination buffer
  * @param[out] dst_end - A pointer to end of destination buffer
  * @param[in] input - Header to encode
- * @param[in] indexed_type - 0, Add, 1,: without, 2: never
  *
  * @return The (possibly advanced) dst pointer.  If the destination
  * pointer was not advanced, an error must have occurred.
  */
 unsigned char *
 lshpack_enc_encode (struct lshpack_enc *henc, unsigned char *dst,
-        unsigned char *dst_end, struct lsxpack_header *);
+        unsigned char *dst_end, struct lsxpack_header *input);
 
 void
 lshpack_enc_set_max_capacity (struct lshpack_enc *, unsigned);
@@ -162,7 +165,7 @@ enum lshpack_dec_flags {
      * pair are separated by ": " and "\r\n" is appended to the end of the
      * string.  By default, this mode is off.
      */
-    LSHPACK_DEC_HTTP1X  = 1 << 0,
+    LSHPACK_DEC_HTTP1X  = 1 << 1,
 };
 
 /**
