@@ -521,12 +521,16 @@ henc_find_table_id (struct lshpack_enc *enc, lsxpack_header_t *input)
     if (input->flags & LSXPACK_HPACK_IDX)
     {
         id = input->hpack_index - 1;
+#ifndef NDEBUG
         if (input->name_ptr || input->name_len)
         {
-            assert((input->name_ptr
-                   || (input->name_ptr = input->buf + input->name_offset) != NULL)
-                    && input->hpack_index == lshpack_enc_get_stx_tab_id(input));
+            lsxpack_header_t input_copy = *input;
+            if (!input_copy.name_ptr)
+                input_copy.name_ptr = input->buf + input->name_offset;
+            const unsigned hpack_index = lshpack_enc_get_stx_tab_id(&input_copy);
+            assert(input_copy.hpack_index == hpack_index);
         }
+#endif
         if (id <= LSHPACK_HDR_ACCEPT_ENCODING)
         {
             if (static_table[id].val_len == input->val_len
