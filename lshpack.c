@@ -445,10 +445,10 @@ static void
 update_hash (struct lsxpack_header *input)
 {
     if (!(input->flags & LSXPACK_NAME_HASH))
-        input->name_hash = XXH32(input->name_ptr,
+        input->name_hash = XXH32(lsxpack_header_get_name(input),
                                  input->name_len, LSHPACK_XXH_SEED);
     else
-        assert(input->name_hash == XXH32(input->name_ptr,
+        assert(input->name_hash == XXH32(lsxpack_header_get_name(input),
                                          input->name_len, LSHPACK_XXH_SEED));
 
     if (!(input->flags & LSXPACK_NAMEVAL_HASH))
@@ -475,7 +475,7 @@ lshpack_enc_get_stx_tab_id (struct lsxpack_header *input)
         i = nameval2id[i] - 1;
         if (static_table[i].name_len == input->name_len
             && static_table[i].val_len == input->val_len
-            && memcmp(input->name_ptr, static_table[i].name,
+            && memcmp(lsxpack_header_get_name(input), static_table[i].name,
                       input->name_len) == 0
             && memcmp(input->buf + input->val_offset, static_table[i].val,
                       input->val_len) == 0)
@@ -489,7 +489,7 @@ lshpack_enc_get_stx_tab_id (struct lsxpack_header *input)
     {
         i = name2id[i] - 1;
         if (static_table[i].name_len == input->name_len
-            && memcmp(input->name_ptr, static_table[i].name,
+            && memcmp(lsxpack_header_get_name(input), static_table[i].name,
                       input->name_len) == 0)
         {
             return i + 1;
@@ -518,7 +518,7 @@ henc_find_table_id (struct lshpack_enc *enc, lsxpack_header_t *input)
     unsigned buckno, id;
     const char *val_ptr = input->buf + input->val_offset;
     /* First, look for a match in the static table: */
-    if (input->flags & LSXPACK_HPACK_IDX)
+    if ((input->flags & LSXPACK_HPACK_IDX) && input->hpack_index)
     {
         id = input->hpack_index - 1;
 #ifndef NDEBUG
@@ -547,9 +547,9 @@ henc_find_table_id (struct lshpack_enc *enc, lsxpack_header_t *input)
         }
 
         if (!(input->flags & LSXPACK_NAME_HASH))
-            input->name_hash = static_table_name_hash[input->hpack_index];
+            input->name_hash = static_table_name_hash[id];
         else
-            assert(input->name_hash == static_table_name_hash[input->hpack_index]);
+            assert(input->name_hash == static_table_name_hash[id]);
         if (!(input->flags & LSXPACK_NAMEVAL_HASH))
             input->nameval_hash = XXH32(val_ptr, input->val_len,
                                         input->name_hash);
@@ -1702,7 +1702,10 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                 *name++ = ' ';
             }
             else
-                return LSHPACK_ERR_MORE_BUF;
+            {
+                extra_buf = 2;
+                goto need_more_buf;
+            }
         }
         output->val_len -= len + http1x;
     }
@@ -1724,7 +1727,10 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         if ((unsigned) len + http1x <= output->val_len)
             memcpy(name + len, "\r\n", 2);
         else
-            return LSHPACK_ERR_MORE_BUF;
+        {
+            extra_buf = 2;
+            goto need_more_buf;
+        }
     }
     output->val_offset = output->name_offset + output->name_len + http1x;
     output->val_len = len;
