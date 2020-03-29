@@ -145,6 +145,24 @@ static const uint32_t static_table_name_hash[HPACK_STATIC_TABLE_SIZE] =
 };
 
 
+static const uint32_t static_table_nameval_hash[HPACK_STATIC_TABLE_SIZE] =
+{
+    0xF8614896u, 0x25D95A15u, 0x33968BB7u, 0xC8C267F6u, 0x8351136Fu,
+    0x98573F68u, 0x16DDE443u, 0x352A6556u, 0xD4F462D2u, 0x125E66E0u,
+    0xD7988BC9u, 0x4C3C90DEu, 0x65E6ECA1u, 0xB05B7B87u, 0x96816317u,
+    0x8BBF5398u, 0x97E01849u, 0xD7B48DD4u, 0x9C180569u, 0xC7C63B45u,
+    0xF4223EE5u, 0x12C8A744u, 0xAA95A0BCu, 0x14F65730u, 0x8410A906u,
+    0x98F440DDu, 0x627E4803u, 0x5A5CC325u, 0x137FC223u, 0x1529262Fu,
+    0x7950B9BDu, 0x51D448A4u, 0x52C167CFu, 0xFB22AA54u, 0x540DB9FEu,
+    0x75A6C685u, 0xE1C54196u, 0xDC0C3733u, 0x6D78CB84u, 0x4F5272CDu,
+    0x9D4170E4u, 0xD4E28BA1u, 0x028C7846u, 0x4E8C1DC3u, 0x684BDDBCu,
+    0xE113A2B0u, 0x55F7BBD1u, 0x15BD3710u, 0xE82B715Du, 0x3674BC1Fu,
+    0x5010D24Bu, 0x953DE1CBu, 0x9F2C92D9u, 0xB2DE5570u, 0xBCA5998Fu,
+    0x0FF5B88Eu, 0x1FED156Bu, 0xDC83E7ECu, 0x07B79E35u, 0xA6D145A9u,
+    0x43638CBAu,
+};
+
+
 #define lshpack_arr_init(a) do {                                        \
     memset((a), 0, sizeof(*(a)));                                       \
 } while (0)
@@ -1179,6 +1197,12 @@ struct dec_table_entry
 {
     unsigned    dte_name_len;
     unsigned    dte_val_len;
+    uint32_t    dte_name_hash;
+    uint32_t    dte_nameval_hash;
+    enum {
+        DTEF_NAME_HASH      = LSXPACK_NAME_HASH,
+        DTEF_NAMEVAL_HASH   = LSXPACK_NAMEVAL_HASH,
+    }           dte_flags:8;
     uint8_t     dte_name_idx;
     char        dte_buf[0];     /* Contains both name and value */
 };
@@ -1451,11 +1475,15 @@ hdec_get_table_entry (struct lshpack_dec *dec, uint32_t index)
 static
 #endif
        int
-lshpack_dec_push_entry (struct lshpack_dec *dec, uint8_t idx, const char *name,
-                        unsigned name_len, const char *val, unsigned val_len)
+lshpack_dec_push_entry (struct lshpack_dec *dec,
+                                        const struct lsxpack_header *xhdr)
 {
     struct dec_table_entry *entry;
+    unsigned name_len, val_len;
     size_t size;
+
+    name_len = xhdr->name_len;
+    val_len = xhdr->val_len;
 
     size = sizeof(*entry) + name_len + val_len;
     entry = malloc(size);
@@ -1471,9 +1499,15 @@ lshpack_dec_push_entry (struct lshpack_dec *dec, uint8_t idx, const char *name,
     dec->hpd_cur_capacity += DYNAMIC_ENTRY_OVERHEAD + name_len + val_len;
     entry->dte_name_len = name_len;
     entry->dte_val_len = val_len;
-    entry->dte_name_idx = idx;
-    memcpy(DTE_NAME(entry), name, name_len);
-    memcpy(DTE_VALUE(entry), val, val_len);
+    if (xhdr->flags & LSXPACK_HPACK_IDX)
+        entry->dte_name_idx = xhdr->hpack_index;
+    else
+        entry->dte_name_idx = LSHPACK_HDR_UNKNOWN;
+    entry->dte_flags = xhdr->flags & (LSXPACK_NAME_HASH|LSXPACK_NAMEVAL_HASH);
+    entry->dte_name_hash = xhdr->name_hash;
+    entry->dte_nameval_hash = xhdr->nameval_hash;
+    memcpy(DTE_NAME(entry), lsxpack_header_get_name(xhdr), name_len);
+    memcpy(DTE_VALUE(entry), lsxpack_header_get_value(xhdr), val_len);
     return 0;
 }
 
@@ -1632,13 +1666,19 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                 extra_buf = static_table[index - 1].name_len + http1x;
                 goto need_more_buf;
             }
+            output->flags |= LSXPACK_NAME_HASH;
+            output->name_hash = static_table_name_hash[index - 1];
 
             if (indexed_type == LSHPACK_VAL_INDEX)
             {
                 if (lshpack_dec_copy_value(output, name,
                                   static_table[index - 1].val,
                                   static_table[index - 1].val_len, http1x) == 0)
+                {
+                    output->flags |= LSXPACK_NAMEVAL_HASH;
+                    output->nameval_hash = static_table_nameval_hash[index - 1];
                     goto decode_end;
+                }
                 else
                 {
                     extra_buf = static_table[index - 1].val_len + http1x;
@@ -1651,6 +1691,12 @@ lshpack_dec_decode (struct lshpack_dec *dec,
             entry = hdec_get_table_entry(dec, index);
             if (entry == NULL)
                 return LSHPACK_ERR_BAD_DATA;
+#ifndef NDEBUG
+            if (dec->hpd_flags & LSHPACK_DEC_HASH_NAME)
+                assert(entry->dte_flags & DTEF_NAME_HASH);
+            if (dec->hpd_flags & LSHPACK_DEC_HASH_NAMEVAL)
+                assert(entry->dte_flags & DTEF_NAMEVAL_HASH);
+#endif
             if (lshpack_dec_copy_name(output, &name, DTE_NAME(entry),
                     entry->dte_name_len, http1x) == LSHPACK_ERR_MORE_BUF)
             {
@@ -1663,12 +1709,18 @@ lshpack_dec_decode (struct lshpack_dec *dec,
             else
                 output->hpack_index = LSHPACK_HDR_UNKNOWN;
             output->flags |= LSXPACK_HPACK_IDX;
+            output->flags |= entry->dte_flags & DTEF_NAME_HASH;
+            output->name_hash = entry->dte_name_hash;
 
             if (indexed_type == LSHPACK_VAL_INDEX)
             {
                 if (lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
                                            entry->dte_val_len, http1x) == 0)
+                {
+                    output->flags |= entry->dte_flags & DTEF_NAMEVAL_HASH;
+                    output->nameval_hash = entry->dte_nameval_hash;
                     goto decode_end;
+                }
                 else
                 {
                     extra_buf = entry->dte_val_len + http1x;
@@ -1692,6 +1744,11 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         }
         if (len > UINT16_MAX)
             return LSHPACK_ERR_TOO_LARGE;
+        if (dec->hpd_flags & (LSHPACK_DEC_HASH_NAME|LSHPACK_DEC_HASH_NAMEVAL))
+        {
+            output->flags |= LSXPACK_NAME_HASH;
+            output->name_hash = XXH32(name, (size_t) len, LSHPACK_XXH_SEED);
+        }
         output->name_len = len;
         name += output->name_len;
         if (http1x)
@@ -1719,6 +1776,12 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     }
     if (len > UINT16_MAX)
         return LSHPACK_ERR_TOO_LARGE;
+    if (dec->hpd_flags & LSHPACK_DEC_HASH_NAMEVAL)
+    {
+        assert(output->flags & LSXPACK_NAME_HASH);
+        output->flags |= LSXPACK_NAMEVAL_HASH;
+        output->nameval_hash = XXH32(name, (size_t) len, output->name_hash);
+    }
     if (http1x)
     {
         if ((unsigned) len + http1x <= output->val_len)
@@ -1729,15 +1792,9 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     output->val_offset = output->name_offset + output->name_len + http1x;
     output->val_len = len;
 
-    if (indexed_type == LSHPACK_ADD_INDEX)
-    {
-        if (index > HPACK_STATIC_TABLE_SIZE)
-            index = 0;
-        if (0 != lshpack_dec_push_entry(dec, index,
-                            name - output->name_len - http1x,
-                            output->name_len, name , output->val_len))
-            return LSHPACK_ERR_BAD_DATA;  //error
-    }
+    if (indexed_type == LSHPACK_ADD_INDEX &&
+                                0 != lshpack_dec_push_entry(dec, output))
+        return LSHPACK_ERR_BAD_DATA;  //error
 decode_end:
     *src = s;
     output->dec_overhead = http1x * 2;

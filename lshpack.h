@@ -165,7 +165,11 @@ enum lshpack_dec_flags {
      * pair are separated by ": " and "\r\n" is appended to the end of the
      * string.  By default, this mode is off.
      */
-    LSHPACK_DEC_HTTP1X  = 1 << 1,
+    LSHPACK_DEC_HTTP1X          = 1 << 1,
+    /** Include name hash into lsxpack_header */
+    LSHPACK_DEC_HASH_NAME       = 1 << 2,
+    /** Include nameval hash into lsxpack_header */
+    LSHPACK_DEC_HASH_NAMEVAL    = 1 << 3,
 };
 
 /**
