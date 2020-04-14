@@ -1088,6 +1088,10 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
          == (LSXPACK_HPACK_IDX | LSXPACK_VAL_MATCHED))
     {
         assert(input->hpack_index != LSHPACK_HDR_UNKNOWN);
+        assert(input->val_len == static_table[input->hpack_index - 1].val_len);
+        assert(memcmp(lsxpack_header_get_value(input),
+                      static_table[input->hpack_index - 1].val,
+                      input->val_len) == 0);
         table_id = input->hpack_index;
     }
     else
@@ -1107,6 +1111,11 @@ lshpack_enc_encode (struct lshpack_enc *enc, unsigned char *dst,
     {
         if (input->flags & LSXPACK_VAL_MATCHED)
         {
+            // remove LSXPACK_VAL_MATCHED if it is for dynamic table
+            // otherwise, it may cause trouble when feed the input to a different encoder.
+            if (table_id > HPACK_STATIC_TABLE_SIZE)
+                input->flags &= ~LSXPACK_VAL_MATCHED;
+
             *dst = 0x80;
             dst = lshpack_enc_enc_int(dst, dst_end, table_id, 7);
             /* No need to check return value: we pass it up as-is because
