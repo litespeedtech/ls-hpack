@@ -291,9 +291,6 @@ lookup_static_table (const char *name, unsigned name_len,
 {
     struct lsxpack_header xhdr;
     unsigned id;
-    char buf[65536];
-    memcpy(buf, name, name_len);
-    memcpy(&buf[name_len], val, val_len);
 
     lsxpack_header_set_ptr(&xhdr, name, name_len, val, val_len);
     xhdr.name_hash = XXH32(name, name_len, LSHPACK_XXH_SEED);
