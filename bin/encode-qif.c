@@ -86,6 +86,18 @@ struct header_set
 };
 
 
+static inline void
+lsxpack_header_set_ptr(lsxpack_header_t *hdr,
+                       const char *name, size_t name_len,
+                       const char *val, size_t val_len)
+{
+    static char buf[65536];
+    memcpy(buf, name, name_len);
+    memcpy(&buf[name_len], val, val_len);
+    lsxpack_header_set_offset2(hdr, buf, 0, name_len, name_len, val_len);
+}
+
+
 int
 main (int argc, char **argv)
 {

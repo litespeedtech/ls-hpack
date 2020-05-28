@@ -1,15 +1,13 @@
 ENABLE_TESTING()
 
-ADD_EXECUTABLE(test_hpack test_hpack.c ../deps/xxhash/xxhash.c)
-TARGET_LINK_LIBRARIES(test_hpack ls-hpack)
-ADD_TEST(hpack-0 test_hpack 0)
-ADD_TEST(hpack-1 test_hpack 1)
-ADD_TEST(hpack-2 test_hpack 2)
-ADD_TEST(hpack-3 test_hpack 3)
-ADD_TEST(hpack-4 test_hpack 4)
-ADD_TEST(hpack-5 test_hpack 5)
-ADD_TEST(hpack-6 test_hpack 6)
-ADD_TEST(hpack-7 test_hpack 7)
+FOREACH(HASH 0 1)
+    FOREACH(HTTP 0 1)
+        ADD_EXECUTABLE(test_hpack_hash${HASH}_http${HTTP} test_hpack.c ../lshpack.c ../deps/xxhash/xxhash.c)
+        SET_TARGET_PROPERTIES(test_hpack_hash${HASH}_http${HTTP}
+            PROPERTIES COMPILE_FLAGS "${CMAKE_C_FLAGS} -DLSHPACK_DEC_HTTP1X_OUTPUT=${HTTP} -DLSHPACK_DEC_CALC_HASH=${HASH}")
+        ADD_TEST(hpack-hash${HASH}-http${HTTP} test_hpack_hash${HASH}_http${HTTP})
+    ENDFOREACH(HTTP)
+ENDFOREACH(HASH)
 
 ADD_EXECUTABLE(test_int test_int.c ../deps/xxhash/xxhash.c)
 TARGET_LINK_LIBRARIES(test_int ls-hpack)
