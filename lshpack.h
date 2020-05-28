@@ -34,7 +34,7 @@ extern "C" {
 #include <lsxpack_header.h>
 
 #define LSHPACK_MAJOR_VERSION 2
-#define LSHPACK_MINOR_VERSION 0
+#define LSHPACK_MINOR_VERSION 2
 #define LSHPACK_PATCH_VERSION 0
 
 #define lshpack_strlen_t lsxpack_strlen_t
