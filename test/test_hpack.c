@@ -208,7 +208,7 @@ decode_and_check_hashes (struct lshpack_dec *dec,
     s = lshpack_dec_decode(dec, src, src_end, xhdr);
     if (s == 0)
     {
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
         assert(xhdr->flags & LSXPACK_NAME_HASH);
 #endif
         if (xhdr->flags & LSXPACK_NAME_HASH)
@@ -218,7 +218,7 @@ decode_and_check_hashes (struct lshpack_dec *dec,
             assert(hash == xhdr->name_hash);
         }
 
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
         {
             /* This is not required by the API, but internally, if the library
              * calculates nameval hash, it should also set the name hash.
@@ -852,7 +852,7 @@ test_hpack_self_enc_dec_test_firefox_error (void)
         lsxpack_header_set_ptr(&xhdr, g_hpack_dyn_init_table_t[i].name,
             g_hpack_dyn_init_table_t[i].name_len, g_hpack_dyn_init_table_t[i].val,
             g_hpack_dyn_init_table_t[i].val_len);
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
         xhdr.name_hash = XXH32(g_hpack_dyn_init_table_t[i].name,
                 g_hpack_dyn_init_table_t[i].name_len, LSHPACK_XXH_SEED);
         xhdr.flags |= LSXPACK_NAME_HASH;

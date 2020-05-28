@@ -40,8 +40,12 @@ extern "C" {
 #define lshpack_strlen_t lsxpack_strlen_t
 #define LSHPACK_MAX_STRLEN LSXPACK_MAX_STRLEN
 
-#define LSHPACK_DEC_HTTP1X_OUTPUT
-#define LSHPACK_DEC_CALC_HASH
+#ifndef LSHPACK_DEC_HTTP1X_OUTPUT
+#define LSHPACK_DEC_HTTP1X_OUTPUT 1
+#endif
+#ifndef LSHPACK_DEC_CALC_HASH
+#define LSHPACK_DEC_CALC_HASH 1
+#endif
 
 struct lshpack_enc;
 struct lshpack_dec;
@@ -192,7 +196,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     struct lsxpack_header *output);
 
 /* Return number of extra bytes per header */
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
 #define LSHPACK_DEC_HTTP1X_EXTRA  (2)
 #define lshpack_dec_extra_bytes(dec_) (4)
 #else

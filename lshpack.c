@@ -1224,7 +1224,7 @@ struct dec_table_entry
 {
     unsigned    dte_name_len;
     unsigned    dte_val_len;
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
     uint32_t    dte_name_hash;
     uint32_t    dte_nameval_hash;
     enum {
@@ -1528,7 +1528,7 @@ lshpack_dec_push_entry (struct lshpack_dec *dec,
     entry->dte_name_len = name_len;
     entry->dte_val_len = val_len;
     entry->dte_name_idx = xhdr->hpack_index;
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
     entry->dte_flags = xhdr->flags & (LSXPACK_NAME_HASH|LSXPACK_NAMEVAL_HASH);
     entry->dte_name_hash = xhdr->name_hash;
     entry->dte_nameval_hash = xhdr->nameval_hash;
@@ -1552,7 +1552,7 @@ lshpack_dec_copy_value (lsxpack_header_t *output, char *dest, const char *val,
     output->val_len = val_len;
     memcpy(dest, val, output->val_len);
     dest += output->val_len;
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
     *dest++ = '\r';
     *dest++ = '\n';
 #endif
@@ -1570,7 +1570,7 @@ lshpack_dec_copy_name (lsxpack_header_t *output, char **dest, const char *name,
     output->name_len = name_len;
     memcpy(*dest, name, name_len);
     *dest += name_len;
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
     *(*dest)++ = ':';
     *(*dest)++ = ' ';
 #endif
@@ -1727,7 +1727,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                 output->hpack_index = entry->dte_name_idx;
             else
                 output->hpack_index = LSHPACK_HDR_UNKNOWN;
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
             output->flags |= entry->dte_flags & DTEF_NAME_HASH;
             output->name_hash = entry->dte_name_hash;
 #endif
@@ -1736,7 +1736,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
                 if (lshpack_dec_copy_value(output, name, DTE_VALUE(entry),
                                            entry->dte_val_len) == 0)
                 {
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
                     output->flags |= entry->dte_flags & DTEF_NAMEVAL_HASH;
                     output->nameval_hash = entry->dte_nameval_hash;
 #endif
@@ -1765,13 +1765,13 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         }
         if (len > UINT16_MAX)
             return LSHPACK_ERR_TOO_LARGE;
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
         output->flags |= LSXPACK_NAME_HASH;
         output->name_hash = XXH32(name, (size_t) len, LSHPACK_XXH_SEED);
 #endif
         output->name_len = len;
         name += output->name_len;
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
         if (output->name_len + 2 <= output->val_len)
         {
             *name++ = ':';
@@ -1798,12 +1798,12 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     }
     if (len > UINT16_MAX)
         return LSHPACK_ERR_TOO_LARGE;
-#ifdef LSHPACK_DEC_CALC_HASH
+#if LSHPACK_DEC_CALC_HASH
     assert(output->flags & LSXPACK_NAME_HASH);
     output->flags |= LSXPACK_NAMEVAL_HASH;
     output->nameval_hash = XXH32(name, (size_t) len, output->name_hash);
 #endif
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
     if ((unsigned) len + 2 <= output->val_len)
         memcpy(name + len, "\r\n", 2);
     else
@@ -1821,7 +1821,7 @@ lshpack_dec_decode (struct lshpack_dec *dec,
         return LSHPACK_ERR_BAD_DATA;  //error
 decode_end:
     *src = s;
-#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#if LSHPACK_DEC_HTTP1X_OUTPUT
     output->dec_overhead = 4;
 #endif
     return 0;
