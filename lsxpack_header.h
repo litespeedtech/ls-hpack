@@ -1,5 +1,5 @@
-#ifndef LSXPACK_HEADER_H_v205
-#define LSXPACK_HEADER_H_v205
+#ifndef LSXPACK_HEADER_H_v206
+#define LSXPACK_HEADER_H_v206
 
 #ifdef __cplusplus
 extern "C" {
@@ -165,4 +165,4 @@ lsxpack_header_mark_val_changed(lsxpack_header_t *hdr)
 }
 #endif
 
-#endif //LSXPACK_HEADER_H_v205
+#endif //LSXPACK_HEADER_H_v206
