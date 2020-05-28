@@ -40,6 +40,9 @@ extern "C" {
 #define lshpack_strlen_t lsxpack_strlen_t
 #define LSHPACK_MAX_STRLEN LSXPACK_MAX_STRLEN
 
+#define LSHPACK_DEC_HTTP1X_OUTPUT
+#define LSHPACK_DEC_CALC_HASH
+
 struct lshpack_enc;
 struct lshpack_dec;
 
@@ -106,7 +109,8 @@ enum lshpack_static_hdr_idx
     LSHPACK_HDR_USER_AGENT,
     LSHPACK_HDR_VARY,
     LSHPACK_HDR_VIA,
-    LSHPACK_HDR_WWW_AUTHENTICATE
+    LSHPACK_HDR_WWW_AUTHENTICATE,
+    LSHPACK_HDR_TOBE_INDEXED = 255
 };
 
 #define LSHPACK_MAX_INDEX           61
@@ -161,24 +165,11 @@ lshpack_enc_use_hist (struct lshpack_enc *, int on);
 int
 lshpack_enc_hist_used (const struct lshpack_enc *);
 
-enum lshpack_dec_flags {
-    /**
-     * Turn HTTP/1.x mode on or off.  In this mode, decoded name and value
-     * pair are separated by ": " and "\r\n" is appended to the end of the
-     * string.  By default, this mode is off.
-     */
-    LSHPACK_DEC_HTTP1X          = 1 << 1,
-    /** Include name hash into lsxpack_header */
-    LSHPACK_DEC_HASH_NAME       = 1 << 2,
-    /** Include nameval hash into lsxpack_header */
-    LSHPACK_DEC_HASH_NAMEVAL    = 1 << 3,
-};
-
 /**
  * Initialize HPACK decoder structure.
  */
 void
-lshpack_dec_init (struct lshpack_dec *, enum lshpack_dec_flags);
+lshpack_dec_init (struct lshpack_dec *);
 
 /**
  * Clean up HPACK decoder structure, freeing all allocated memory.
@@ -201,8 +192,13 @@ lshpack_dec_decode (struct lshpack_dec *dec,
     struct lsxpack_header *output);
 
 /* Return number of extra bytes per header */
-#define lshpack_dec_extra_bytes(dec_) ( \
-    (dec_)->hpd_flags & LSHPACK_DEC_HTTP1X ? 4 : 0)
+#ifdef LSHPACK_DEC_HTTP1X_OUTPUT
+#define LSHPACK_DEC_HTTP1X_EXTRA  (2)
+#define lshpack_dec_extra_bytes(dec_) (4)
+#else
+#define LSHPACK_DEC_HTTP1X_EXTRA  (0)
+#define lshpack_dec_extra_bytes(dec_) (0)
+#endif
 
 void
 lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
@@ -259,8 +255,6 @@ struct lshpack_arr
 struct lshpack_dec
 {
     struct lshpack_arr hpd_dyn_table;
-    enum lshpack_dec_flags
-                       hpd_flags;
     unsigned           hpd_max_capacity;       /* Maximum set by caller */
     unsigned           hpd_cur_max_capacity;   /* Adjusted at runtime */
     unsigned           hpd_cur_capacity;
