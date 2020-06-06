@@ -610,7 +610,8 @@ henc_find_table_id (struct lshpack_enc *enc, lsxpack_header_t *input,
         }
 
     /* Name/value match is not found, look for header: */
-    input->hpack_index = lshpack_enc_get_static_name(input);
+    if (input->hpack_index == LSHPACK_HDR_UNKNOWN)
+        input->hpack_index = lshpack_enc_get_static_name(input);
     if (input->hpack_index != LSHPACK_HDR_UNKNOWN)
     {
         input->flags &= ~LSXPACK_HPACK_VAL_MATCHED;
