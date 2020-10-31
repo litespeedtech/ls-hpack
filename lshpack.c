@@ -251,7 +251,7 @@ struct lshpack_enc_table_entry
     unsigned                        ete_name_hash;
     unsigned                        ete_name_len;
     unsigned                        ete_val_len;
-    char                            ete_buf[0];
+    char                            ete_buf[];
 };
 
 #define ETE_NAME(ete) ((ete)->ete_buf)
@@ -1234,7 +1234,7 @@ struct dec_table_entry
     }           dte_flags:8;
 #endif
     uint8_t     dte_name_idx;
-    char        dte_buf[0];     /* Contains both name and value */
+    char        dte_buf[];     /* Contains both name and value */
 };
 
 #define DTE_NAME(dte) ((dte)->dte_buf)
