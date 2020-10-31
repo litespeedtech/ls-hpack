@@ -31,7 +31,7 @@ extern "C" {
 
 #include <limits.h>
 #include <stdint.h>
-#include <lsxpack_header.h>
+#include "lsxpack_header.h"
 
 #define LSHPACK_MAJOR_VERSION 2
 #define LSHPACK_MINOR_VERSION 2
