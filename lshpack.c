@@ -690,7 +690,7 @@ lshpack_enc_huff_encode (const unsigned char *src,
     uintptr_t bits;  /* OK not to initialize this variable */
     unsigned bits_used = 0, adj;
     struct encode_el cur_enc_code;
-#if __GNUC__
+#if __GNUC__ && (__clang__ || __GNUC__ >= 5)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #pragma GCC diagnostic ignored "-Wuninitialized"
@@ -803,7 +803,7 @@ lshpack_enc_huff_encode (const unsigned char *src,
         return p_dst - dst;
     else
         return -1;
-#if __GNUC__
+#if __GNUC__ && (__clang__ || __GNUC__ >= 5)
 #pragma GCC diagnostic pop
 #endif
 }
