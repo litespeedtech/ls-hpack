@@ -1675,6 +1675,12 @@ lshpack_dec_decode (struct lshpack_dec *dec,
 
         indexed_type = LSHPACK_NO_INDEX;
     }
+
+    if (index == LSHPACK_HDR_UNKNOWN && s == src_end)
+    {
+        return LSHPACK_ERR_BAD_DATA;
+    }
+    
     if (index != LSHPACK_HDR_UNKNOWN && index <= LSHPACK_HDR_WWW_AUTHENTICATE)
     {
         output->hpack_index = index;
