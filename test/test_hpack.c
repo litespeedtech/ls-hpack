@@ -1362,7 +1362,7 @@ test_header_arr (void)
 static void
 insert_long_codes_into_header_arr (void)
 {
-    const char codes[] = "\\\x16\x7F\x09";
+    const char codes[] = "\\\x16\x7F\x06";
     unsigned code_count, i, name, pos, off;
     char *dst;
     size_t len;
