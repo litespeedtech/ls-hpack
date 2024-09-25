@@ -35,6 +35,10 @@ SOFTWARE.
 #endif
 #include XXH_HEADER_NAME
 
+#ifdef _MSC_VER
+#  define FALL_THROUGH
+#endif
+
 #ifndef FALL_THROUGH
 #  if defined __has_attribute && __has_attribute (fallthrough)
 #    define FALL_THROUGH __attribute__ ((fallthrough))
