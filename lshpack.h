@@ -25,13 +25,15 @@ SOFTWARE.
 #ifndef LITESPEED_HPACK_H
 #define LITESPEED_HPACK_H 1
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <limits.h>
 #include <stdint.h>
+#include <sys/queue.h>
 #include "lsxpack_header.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define LSHPACK_MAJOR_VERSION 2
 #define LSHPACK_MINOR_VERSION 3
@@ -210,8 +212,6 @@ lshpack_dec_set_max_capacity (struct lshpack_dec *, unsigned);
 /* Some internals follow.  Struct definitions are exposed to save a malloc.
  * These structures are not very complicated.
  */
-
-#include <sys/queue.h>
 
 #ifdef __OpenBSD__
 #define STAILQ_HEAD             SIMPLEQ_HEAD
