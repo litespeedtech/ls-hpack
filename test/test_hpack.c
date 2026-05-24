@@ -603,6 +603,68 @@ test_decode_limits (void)
 
 
 static void
+test_hdec_zero_length_name (void)
+{
+    const unsigned char input[] = {
+        0x00,       /* Literal header field without indexing: new name */
+        0x00,       /* Name length */
+        0x05, 'v', 'a', 'l', 'u', 'e',
+    };
+    const unsigned char *src;
+    char out[0x100];
+    struct lshpack_dec hdec;
+    struct lsxpack_header xhdr;
+    int s;
+
+    lshpack_dec_init(&hdec);
+
+    src = input;
+    lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
+    s = lshpack_dec_decode(&hdec, &src, input + sizeof(input), &xhdr);
+    assert(0 == s);
+    assert(src == input + sizeof(input));
+    assert(0 == xhdr.name_len);
+    assert(5 == xhdr.val_len);
+    assert(NULL == lsxpack_header_get_name(&xhdr));
+    assert(0 == memcmp(lsxpack_header_get_value(&xhdr), "value", 5));
+
+    lshpack_dec_cleanup(&hdec);
+}
+
+
+static void
+test_hdec_trailing_whitespace_name (void)
+{
+    static const char name[] = "cookie \t\v\f\r\n";
+    const unsigned char input[] = {
+        0x00,       /* Literal header field without indexing: new name */
+        sizeof(name) - 1,
+        'c', 'o', 'o', 'k', 'i', 'e', ' ', '\t', '\v', '\f', '\r', '\n',
+        0x05, 'v', 'a', 'l', 'u', 'e',
+    };
+    const unsigned char *src;
+    char out[0x100];
+    struct lshpack_dec hdec;
+    struct lsxpack_header xhdr;
+    int s;
+
+    lshpack_dec_init(&hdec);
+
+    src = input;
+    lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
+    s = decode_and_check_hashes(&hdec, &src, input + sizeof(input), &xhdr);
+    assert(0 == s);
+    assert(src == input + sizeof(input));
+    assert(sizeof(name) - 1 == xhdr.name_len);
+    assert(5 == xhdr.val_len);
+    assert(0 == memcmp(lsxpack_header_get_name(&xhdr), name, sizeof(name) - 1));
+    assert(0 == memcmp(lsxpack_header_get_value(&xhdr), "value", 5));
+
+    lshpack_dec_cleanup(&hdec);
+}
+
+
+static void
 test_hpack_self_enc_dec_test (void)
 {
     unsigned char respBuf[8192] = {0};
@@ -1636,6 +1698,8 @@ main (int argc, char **argv)
 #endif
     test_hdec_static_idx_0();
     test_hdec_boundary();
+    test_hdec_zero_length_name();
+    test_hdec_trailing_whitespace_name();
 
     return 0;
 }
