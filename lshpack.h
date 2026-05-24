@@ -1,7 +1,7 @@
 /*
 MIT License
 
-Copyright (c) 2018 - 2023 LiteSpeed Technologies Inc
+Copyright (c) 2018 - 2026 LiteSpeed Technologies Inc
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@ extern "C" {
 
 #define LSHPACK_MAJOR_VERSION 2
 #define LSHPACK_MINOR_VERSION 3
-#define LSHPACK_PATCH_VERSION 4
+#define LSHPACK_PATCH_VERSION 5
 
 #define lshpack_strlen_t lsxpack_strlen_t
 #define LSHPACK_MAX_STRLEN LSXPACK_MAX_STRLEN
