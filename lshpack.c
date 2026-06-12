@@ -1910,7 +1910,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
                 buf |= (uintptr_t) *src++ << 24;
                 buf |= (uintptr_t) *src++ << 16;
 #else
-                FALL_THROUGH;
             case 4:
                 buf <<= 8;
                 buf |= (uintptr_t) *src++;
