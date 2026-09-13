@@ -1526,6 +1526,36 @@ test_huff_dec_trailing_garbage (int full)
 
 
 static void
+test_huff_dec_bad_padding (void)
+{
+    static const struct {
+        unsigned char   src[11];
+        int             src_len;
+    } tests[] = {
+        /* "Dj1D3" followed by eight one-bits of EOS-prefix padding. */
+        { { 0xbf, 0xd0, 0x37, 0xd9, 0xff, }, 5, },
+        /* A longer input that takes the same final-symbol fast path. */
+        { { 0xd9, 0x68, 0x63, 0x84, 0x4c, 0xfe, 0x77, 0xa0, 0xbc,
+            0xc9, 0xff, }, 11, },
+    };
+    unsigned char out[64];
+    unsigned i;
+
+    for (i = 0; i < sizeof(tests) / sizeof(tests[0]); ++i)
+    {
+#if LS_HPACK_USE_LARGE_TABLES
+        /* The full decoder already rejects over-long EOS-prefix padding. */
+        assert(-1 == lshpack_dec_huff_decode_full(tests[i].src,
+                    tests[i].src_len, out, (int) sizeof(out)));
+#endif
+        /* The fast decoder must agree. */
+        assert(-1 == lshpack_dec_huff_decode(tests[i].src,
+                    tests[i].src_len, out, (int) sizeof(out)));
+    }
+}
+
+
+static void
 test_huff_dec_fallback (void)
 {
     const unsigned char *src;
@@ -1692,6 +1722,7 @@ main (int argc, char **argv)
     test_huff_dec_empty_string();
     test_huff_dec_trailing_garbage(1);
     test_huff_dec_trailing_garbage(0);
+    test_huff_dec_bad_padding();
     test_huff_dec_fallback();
 #if LS_HPACK_USE_LARGE_TABLES
     test_huff_dec_bad_eos();
