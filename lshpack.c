@@ -233,7 +233,8 @@ lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val)
     new_els = malloc(n * sizeof(arr->els[0]));
     if (!new_els)
         return -1;
-    memcpy(new_els, arr->els + arr->off, sizeof(arr->els[0]) * arr->nelem);
+    if (arr->nelem)
+        memcpy(new_els, arr->els + arr->off, sizeof(arr->els[0]) * arr->nelem);
     free(arr->els);
     arr->off = 0;
     arr->els = new_els;
@@ -1325,6 +1326,17 @@ lshpack_dec_dec_int (const unsigned char **src_p, const unsigned char *src_end,
     {
         if (src < src_end)
         {
+            /* A uint32_t integer is at most LSHPACK_UINT32_ENC_SZ octets
+             * (RFC 7541 5.1): the prefix and five continuations, the last
+             * of which is shifted by 28.  Without this bound the loop
+             * keeps reading while the high bit is set, and the sixth
+             * continuation shifts by 35 - undefined for a 32-bit type.
+             * The check below rejects such an encoding anyway (M would be
+             * 42, which neither of its arms accepts), so this returns the
+             * same -2 it always did, before the shift instead of after.
+             */
+            if (src - orig_src >= LSHPACK_UINT32_ENC_SZ)
+                return -2;
             B = *src++;
             val = val + ((B & 0x7f) << M);
             M += 7;
@@ -1336,7 +1348,15 @@ lshpack_dec_dec_int (const unsigned char **src_p, const unsigned char *src_end,
     }
     while (B & 0x80);
 
-    if (M <= 28 || (M == 35 && src[-1] <= 0xF && val - (src[-1] << 28) < val))
+    /* src[-1] is an unsigned char and promotes to int, so src[-1] << 28
+     * is a signed shift that overflows for any value above 7 - and this
+     * arm is reached only when src[-1] is at most 0xF, so 8 through 0xF
+     * are exactly the values it sees.  The subtraction wants that
+     * octet's contribution at bit 28 as an unsigned quantity.
+     */
+    if (M <= 28
+            || (M == 35 && src[-1] <= 0xF
+                        && val - ((uint32_t) src[-1] << 28) < val))
     {
         *src_p = src;
         *value_p = val;
