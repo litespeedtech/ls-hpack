@@ -2057,6 +2057,12 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
             return -1;
     }
 
+    /* Valid Huffman padding is at most 7 bits, else must be treated as
+     * malformed.  RFC 7541, Section 5.2.
+     */
+    if (avail_bits >= 8)
+        return -1;
+
     if (avail_bits > 0)
     {
         if (((1u << avail_bits) - 1) != (buf & ((1u << avail_bits) - 1)))
