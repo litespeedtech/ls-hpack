@@ -28,7 +28,11 @@ SOFTWARE.
 
 #include <limits.h>
 #include <stdint.h>
+#ifdef _WIN32
+#include "lshpack_queue.h"
+#else
 #include <sys/queue.h>
+#endif
 #include "lsxpack_header.h"
 
 #ifdef __cplusplus
