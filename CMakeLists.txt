@@ -42,6 +42,14 @@ IF (MSVC)
     INCLUDE_DIRECTORIES(compat/windows)
 ENDIF()
 
+IF (WIN32)
+    # lshpack.h includes lshpack_queue.h on Windows, which has no sys/queue.h
+    CONFIGURE_FILE(compat/queue/sys/queue.h
+        ${CMAKE_BINARY_DIR}/lshpack_queue.h COPYONLY)
+    INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
+    TARGET_INCLUDE_DIRECTORIES(ls-hpack INTERFACE "${CMAKE_BINARY_DIR}")
+ENDIF()
+
 IF (CMAKE_C_COMPILER_ID STREQUAL GNU
 	OR CMAKE_C_COMPILER_ID STREQUAL Clang)
 	SET(MY_CMAKE_FLAGS "${MY_CMAKE_FLAGS} -Wall -Wextra -Wno-unused-parameter")
