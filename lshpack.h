@@ -125,6 +125,7 @@ enum lshpack_static_hdr_idx
 
 #define LSHPACK_MAX_INDEX           61
 
+#define LSHPACK_ERR_BAD_INIT_HEAP   (-4)
 #define LSHPACK_ERR_MORE_BUF        (-3)
 #define LSHPACK_ERR_TOO_LARGE       (-2)
 #define LSHPACK_ERR_BAD_DATA        (-1)
@@ -291,6 +292,22 @@ struct lshpack_dec
 /* This function may update hash values and flags */
 unsigned
 lshpack_enc_get_stx_tab_id (struct lsxpack_header *);
+
+
+/* lshpack global heap */
+typedef void *(*lshpack_malloc_fn)(size_t size);
+typedef void (*lshpack_free_fn)(void* p);
+
+/* replaces global memory allocators in favor of custom ones */
+int lshpack_init_mem(
+    lshpack_malloc_fn malloc_fn,
+    lshpack_free_fn free_fn
+);
+/* replaces global memory allocators with it's original defaults. */
+int lshpack_reset_mem();
+void* lshpack_malloc(size_t size);
+void lshpack_free(void* p);
+
 
 #ifdef __cplusplus
 }

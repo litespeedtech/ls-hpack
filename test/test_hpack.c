@@ -1693,6 +1693,39 @@ test_hdec_boundary (void)
 }
 
 
+static int __malloc_counter = 0;
+static int __free_counter = 0;
+
+void* custom_malloc(size_t size){
+    __malloc_counter++;
+    return malloc(size);
+}
+
+void custom_free(void* mem){
+    __free_counter++;
+    free(mem);
+}
+
+static void test_custom_allocators(){
+    struct lshpack_enc henc;
+    lshpack_init_mem(custom_malloc, custom_free);
+
+
+    lshpack_enc_init(&henc);
+    lshpack_enc_cleanup(&henc);
+
+    assert((__malloc_counter > 0) && (__free_counter > 0));
+    int last_malloc = __malloc_counter;
+    int last_free = __free_counter;
+    lshpack_reset_mem();
+
+    lshpack_enc_init(&henc);
+    lshpack_enc_cleanup(&henc);
+
+    assert((last_malloc == __malloc_counter) && (last_free == __free_counter));
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1732,6 +1765,7 @@ main (int argc, char **argv)
     test_hdec_zero_length_name();
     test_hdec_trailing_whitespace_name();
 
+    test_custom_allocators();
     return 0;
 }
 

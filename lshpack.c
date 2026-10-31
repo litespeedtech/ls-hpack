@@ -180,7 +180,7 @@ static const uint32_t static_table_nameval_hash[HPACK_STATIC_TABLE_SIZE] =
 } while (0)
 
 #define lshpack_arr_cleanup(a) do {                                     \
-    free((a)->els);                                                     \
+    lshpack_free((a)->els);                                                     \
     memset((a), 0, sizeof(*(a)));                                       \
 } while (0)
 
@@ -230,12 +230,12 @@ lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val)
         n = arr->nalloc * 2;
     else
         n = 64;
-    new_els = malloc(n * sizeof(arr->els[0]));
+    new_els = lshpack_malloc(n * sizeof(arr->els[0]));
     if (!new_els)
         return -1;
     if (arr->nelem)
         memcpy(new_els, arr->els + arr->off, sizeof(arr->els[0]) * arr->nelem);
-    free(arr->els);
+    lshpack_free(arr->els);
     arr->off = 0;
     arr->els = new_els;
     arr->nalloc = n;
@@ -295,7 +295,7 @@ lshpack_enc_init (struct lshpack_enc *enc)
     unsigned nbits = 2;
     unsigned i;
 
-    buckets = malloc(sizeof(buckets[0]) * N_BUCKETS(nbits));
+    buckets = lshpack_malloc(sizeof(buckets[0]) * N_BUCKETS(nbits));
     if (!buckets)
         return -1;
 
@@ -329,10 +329,10 @@ lshpack_enc_cleanup (struct lshpack_enc *enc)
     for (entry = STAILQ_FIRST(&enc->hpe_all_entries); entry; entry = next)
     {
         next = STAILQ_NEXT(entry, ete_next_all);
-        free(entry);
+        lshpack_free(entry);
     }
-    free(enc->hpe_hist_buf);
-    free(enc->hpe_buckets);
+    lshpack_free(enc->hpe_hist_buf);
+    lshpack_free(enc->hpe_buckets);
 }
 
 
@@ -348,7 +348,7 @@ henc_use_hist (struct lshpack_enc *enc)
     if (!hist_size)
         return 0;
 
-    enc->hpe_hist_buf = malloc(sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
+    enc->hpe_hist_buf = lshpack_malloc(sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
     if (!enc->hpe_hist_buf)
         return -1;
 
@@ -366,7 +366,7 @@ lshpack_enc_use_hist (struct lshpack_enc *enc, int on)
     else
     {
         enc->hpe_flags &= ~LSHPACK_ENC_USE_HIST;
-        free(enc->hpe_hist_buf);
+        lshpack_free(enc->hpe_hist_buf);
         enc->hpe_hist_buf = NULL;
         enc->hpe_hist_size = 0;
         enc->hpe_hist_idx = 0;
@@ -918,7 +918,7 @@ henc_drop_oldest_entry (struct lshpack_enc *enc)
     enc->hpe_cur_capacity -= DYNAMIC_ENTRY_OVERHEAD + entry->ete_name_len
                                                         + entry->ete_val_len;
     --enc->hpe_nelem;
-    free(entry);
+    lshpack_free(entry);
 }
 
 
@@ -939,7 +939,7 @@ henc_grow_tables (struct lshpack_enc *enc)
     int idx;
 
     old_nbits = enc->hpe_nbits;
-    new_buckets = malloc(sizeof(enc->hpe_buckets[0])
+    new_buckets = lshpack_malloc(sizeof(enc->hpe_buckets[0])
                                                 * N_BUCKETS(old_nbits + 1));
     if (!new_buckets)
         return -1;
@@ -970,7 +970,7 @@ henc_grow_tables (struct lshpack_enc *enc)
         }
     }
 
-    free(enc->hpe_buckets);
+    lshpack_free(enc->hpe_buckets);
     enc->hpe_nbits   = old_nbits + 1;
     enc->hpe_buckets = new_buckets;
     return 0;
@@ -1003,7 +1003,7 @@ lshpack_enc_push_entry (struct lshpack_enc *enc,
     else
         name = lsxpack_header_get_name(input);
     size = sizeof(*entry) + name_len + input->val_len;
-    entry = malloc(size);
+    entry = lshpack_malloc(size);
     if (!entry)
         return -1;
 
@@ -1046,7 +1046,7 @@ henc_resize_history (struct lshpack_enc *enc)
 
     if (hist_size == 0)
     {
-        free(enc->hpe_hist_buf);
+        lshpack_free(enc->hpe_hist_buf);
         enc->hpe_hist_buf = NULL;
         enc->hpe_hist_size = 0;
         enc->hpe_hist_idx = 0;
@@ -1054,7 +1054,7 @@ henc_resize_history (struct lshpack_enc *enc)
         return;
     }
 
-    hist_buf = malloc(sizeof(hist_buf[0]) * (hist_size + 1));
+    hist_buf = lshpack_malloc(sizeof(hist_buf[0]) * (hist_size + 1));
     if (!hist_buf)
         return;
 
@@ -1073,7 +1073,7 @@ henc_resize_history (struct lshpack_enc *enc)
     enc->hpe_hist_size = hist_size;
     enc->hpe_hist_idx = j % hist_size;
     enc->hpe_hist_wrapped = enc->hpe_hist_idx == 0;
-    free(enc->hpe_hist_buf);
+    lshpack_free(enc->hpe_hist_buf);
     enc->hpe_hist_buf = hist_buf;
 }
 
@@ -1285,7 +1285,7 @@ lshpack_dec_cleanup (struct lshpack_dec *dec)
     while (lshpack_arr_count(&dec->hpd_dyn_table) > 0)
     {
         val = lshpack_arr_pop(&dec->hpd_dyn_table);
-        free((struct dec_table_entry *) val);
+        lshpack_free((struct dec_table_entry *) val);
     }
     lshpack_arr_cleanup(&dec->hpd_dyn_table);
 }
@@ -1375,7 +1375,7 @@ hdec_drop_oldest_entry (struct lshpack_dec *dec)
     dec->hpd_cur_capacity -= DYNAMIC_ENTRY_OVERHEAD + entry->dte_name_len
                                                         + entry->dte_val_len;
     ++dec->hpd_state;
-    free(entry);
+    lshpack_free(entry);
 }
 
 
@@ -1547,13 +1547,13 @@ lshpack_dec_push_entry (struct lshpack_dec *dec,
     val_len = xhdr->val_len;
 
     size = sizeof(*entry) + name_len + val_len;
-    entry = malloc(size);
+    entry = lshpack_malloc(size);
     if (!entry)
         return -1;
 
     if (0 != lshpack_arr_push(&dec->hpd_dyn_table, (uintptr_t) entry))
     {
-        free(entry);
+        lshpack_free(entry);
         return -1;
     }
     ++dec->hpd_state;
@@ -2086,6 +2086,40 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     else
         return r;
 }
+
+
+static void *(*__lshpack_malloc)(size_t size)             = malloc;
+static void (*__lshpack_free)(void *ptr)                  = free;
+
+int lshpack_init_mem(
+    lshpack_malloc_fn malloc_fn,
+    lshpack_free_fn free_fn
+){
+    if (
+        (malloc_fn == NULL) || 
+        (free_fn == NULL) 
+    ){
+        return LSHPACK_ERR_BAD_INIT_HEAP;
+    }
+    __lshpack_malloc = malloc_fn;
+    __lshpack_free = free_fn;
+    return LSHPACK_OK;
+}
+
+int lshpack_reset_mem(){
+    return lshpack_init_mem(malloc, free);
+}
+
+void* lshpack_malloc(size_t size){
+    return __lshpack_malloc(size);
+}
+
+void lshpack_free(void* p){
+    __lshpack_free(p);
+}
+
+
+
 #endif
 #if __GNUC__
 #pragma GCC diagnostic pop  /* -Wunknown-pragmas */
