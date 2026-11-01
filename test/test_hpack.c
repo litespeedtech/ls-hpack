@@ -1734,8 +1734,8 @@ static void test_custom_allocators(){
     lshpack_dec_cleanup(&henc);
 
     assert((__malloc_counter > 0) && (__free_counter > 0));
-    int last_malloc = __malloc_counter;
-    int last_free = __free_counter;
+    last_malloc = __malloc_counter;
+    last_free = __free_counter;
 
     lshpack_dec_init(&henc);
     lshpack_dec_cleanup(&henc);
