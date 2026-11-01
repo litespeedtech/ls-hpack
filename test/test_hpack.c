@@ -1713,6 +1713,8 @@ static struct lshpack_allocator custom_allocator = {
 
 static void test_custom_allocators(){
     struct lshpack_enc henc;
+    struct lshpack_dec hdec;
+
     
     lshpack_enc_init_ex(&henc, &custom_allocator);
     lshpack_enc_cleanup(&henc);
@@ -1730,15 +1732,17 @@ static void test_custom_allocators(){
     __malloc_counter = 0;
     __free_counter = 0;
 
-    lshpack_dec_init_ex(&henc, &custom_allocator);
-    lshpack_dec_cleanup(&henc);
+
+
+    lshpack_dec_init_ex(&hdec, &custom_allocator);
+    lshpack_dec_cleanup(&hdec);
 
     assert((__malloc_counter > 0) && (__free_counter > 0));
     last_malloc = __malloc_counter;
     last_free = __free_counter;
 
-    lshpack_dec_init(&henc);
-    lshpack_dec_cleanup(&henc);
+    lshpack_dec_init(&hdec);
+    lshpack_dec_cleanup(&hdec);
 
     assert((last_malloc == __malloc_counter) && (last_free == __free_counter));
 }
