@@ -1692,6 +1692,62 @@ test_hdec_boundary (void)
     lshpack_dec_cleanup(&hdec);
 }
 
+static int __malloc_counter = 0;
+static int __free_counter = 0;
+
+void* custom_malloc(void* ctx, size_t size){
+    __malloc_counter++;
+    return malloc(size);
+}
+
+void custom_free(void* ctx, void* ptr){
+    __free_counter++;
+    free(ptr);
+}
+
+static struct lshpack_allocator custom_allocator = {
+    .ctx = NULL,
+    .malloc = custom_malloc,
+    .free = custom_free
+};
+
+static void test_custom_allocators(){
+    struct lshpack_enc henc;
+    struct lshpack_dec hdec;
+
+    
+    lshpack_enc_init_ex(&henc, &custom_allocator);
+    lshpack_enc_cleanup(&henc);
+
+    assert((__malloc_counter > 0) && (__free_counter > 0));
+    int last_malloc = __malloc_counter;
+    int last_free = __free_counter;
+
+    lshpack_enc_init(&henc);
+    lshpack_enc_cleanup(&henc);
+
+    assert((last_malloc == __malloc_counter) && (last_free == __free_counter));
+
+    /* reset counters for testing decoder */
+    __malloc_counter = 0;
+    __free_counter = 0;
+
+
+
+    lshpack_dec_init_ex(&hdec, &custom_allocator);
+    lshpack_dec_cleanup(&hdec);
+
+    assert((__malloc_counter > 0) && (__free_counter > 0));
+    last_malloc = __malloc_counter;
+    last_free = __free_counter;
+
+    lshpack_dec_init(&hdec);
+    lshpack_dec_cleanup(&hdec);
+
+    assert((last_malloc == __malloc_counter) && (last_free == __free_counter));
+}
+
+
 
 int
 main (int argc, char **argv)
@@ -1732,6 +1788,7 @@ main (int argc, char **argv)
     test_hdec_zero_length_name();
     test_hdec_trailing_whitespace_name();
 
+    test_custom_allocators();
     return 0;
 }
 
