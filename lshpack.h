@@ -125,11 +125,40 @@ enum lshpack_static_hdr_idx
 
 #define LSHPACK_MAX_INDEX           61
 
-#define LSHPACK_ERR_BAD_INIT_HEAP   (-4)
+#define LSHPACK_ERR_BAD_ALLOC       (-4)
 #define LSHPACK_ERR_MORE_BUF        (-3)
 #define LSHPACK_ERR_TOO_LARGE       (-2)
 #define LSHPACK_ERR_BAD_DATA        (-1)
 #define LSHPACK_OK                  (0)
+
+
+struct lshpack_allocator
+{
+    void *ctx;
+    void *(*malloc)(void *ctx, size_t size);
+    void (*free)(void *ctx, void *ptr);
+};
+
+/**
+ * Initialization routine allocates memory with custom memory.  
+ * -1 is returned if memory could not be allocated. 
+ * -4 if allocator is NULL
+ *  0 is returned on success.
+ */
+int
+lshpack_enc_init_ex (struct lshpack_enc *, const struct lshpack_allocator *);
+
+
+/**
+ * Initialization routine allocates memory with custom memory.  
+ * -1 is returned if memory could not be allocated. 
+ * -4 if allocator is NULL
+ *  0 is returned on success.
+ */
+int
+lshpack_dec_init_ex (struct lshpack_dec *, const struct lshpack_allocator *);
+
+
 
 /**
  * Initialization routine allocates memory.  -1 is returned if memory
@@ -270,6 +299,8 @@ struct lshpack_enc
     enum {
         LSHPACK_ENC_USE_HIST    = 1 << 0,
     }                   hpe_flags;
+
+    struct lshpack_allocator*  hpe_alloc;
 };
 
 struct lshpack_arr
@@ -287,26 +318,13 @@ struct lshpack_dec
     unsigned           hpd_cur_max_capacity;   /* Adjusted at runtime */
     unsigned           hpd_cur_capacity;
     unsigned           hpd_state;
+    struct lshpack_allocator* hpd_alloc;
 };
 
 /* This function may update hash values and flags */
 unsigned
 lshpack_enc_get_stx_tab_id (struct lsxpack_header *);
 
-
-/* lshpack global heap */
-typedef void *(*lshpack_malloc_fn)(size_t size);
-typedef void (*lshpack_free_fn)(void* p);
-
-/* replaces global memory allocators in favor of custom ones */
-int lshpack_init_mem(
-    lshpack_malloc_fn malloc_fn,
-    lshpack_free_fn free_fn
-);
-/* replaces global memory allocators with it's original defaults. */
-int lshpack_reset_mem();
-void* lshpack_malloc(size_t size);
-void lshpack_free(void* p);
 
 
 #ifdef __cplusplus
