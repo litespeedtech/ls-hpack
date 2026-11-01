@@ -1308,7 +1308,7 @@ lshpack_dec_init_ex (struct lshpack_dec *dec, const struct lshpack_allocator* al
 
 void
 lshpack_dec_init (struct lshpack_dec * dec){
-    lshpack_dec_init_ex(dec, __default_alloc);
+    lshpack_dec_init_ex(dec, &__default_alloc);
 }
 
 
