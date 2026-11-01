@@ -295,7 +295,7 @@ static void __default_free(void* ctx, void* ptr){
     free(ptr);
 }
 
-static struct lshpack_allocator __default_allocator = {
+static struct lshpack_allocator __default_alloc = {
     .ctx = NULL,
     .malloc = __default_malloc,
     .free = __default_free
@@ -342,7 +342,7 @@ lshpack_enc_init_ex (struct lshpack_enc * enc, const struct lshpack_allocator *a
 
 int
 lshpack_enc_init(struct lshpack_enc* enc){
-    return lshpack_enc_init_ex(enc, &__default_allocator);
+    return lshpack_enc_init_ex(enc, &__default_alloc);
 }
 
 
