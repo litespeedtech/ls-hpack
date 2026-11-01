@@ -1303,6 +1303,7 @@ lshpack_dec_init_ex (struct lshpack_dec *dec, const struct lshpack_allocator* al
     dec->hpd_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     dec->hpd_cur_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     lshpack_arr_init(&dec->hpd_dyn_table);
+    dec->hpd_alloc = alloc;
     return LSHPACK_OK;
 }
 
