@@ -139,11 +139,9 @@ enum lshpack_static_hdr_idx
  */
 struct lshpack_allocator
 {
-    void *ctx;
-    void *
-        (*malloc) (void *ctx, size_t size);
-    void
-        (*free) (void *ctx, void *ptr);
+    void    *ctx;
+    void * (*malloc) (void *ctx, size_t size);
+    void   (*free)   (void *ctx, void *ptr);
 };
 
 /**
