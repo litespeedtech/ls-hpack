@@ -130,6 +130,27 @@ enum lshpack_static_hdr_idx
 #define LSHPACK_ERR_BAD_DATA        (-1)
 #define LSHPACK_OK                  (0)
 
+
+/**
+ * The allocator descriptor and its context must remain valid through encoder
+ * or decoder cleanup.  The descriptor is retained, not copied, and must not
+ * change during that lifetime.  Both callbacks must be non-NULL; free must
+ * accept a NULL pointer.
+ */
+struct lshpack_allocator
+{
+    void    *ctx;
+    void * (*malloc) (void *ctx, size_t size);
+    void   (*free)   (void *ctx, void *ptr);
+};
+
+/**
+ * Initialize the encoder using the given allocator.  Pass NULL to use
+ * malloc and free.  Return 0 on success or -1 if allocation fails.
+ */
+int
+lshpack_enc_init_ex (struct lshpack_enc *, struct lshpack_allocator *);
+
 /**
  * Initialization routine allocates memory.  -1 is returned if memory
  * could not be allocated.  0 is returned on success.
@@ -174,6 +195,13 @@ lshpack_enc_use_hist (struct lshpack_enc *, int on);
  */
 int
 lshpack_enc_hist_used (const struct lshpack_enc *);
+
+/**
+ * Initialize the decoder using the given allocator.  Pass NULL to use
+ * malloc and free.
+ */
+void
+lshpack_dec_init_ex (struct lshpack_dec *, struct lshpack_allocator *);
 
 /**
  * Initialize HPACK decoder structure.
@@ -269,6 +297,9 @@ struct lshpack_enc
     enum {
         LSHPACK_ENC_USE_HIST    = 1 << 0,
     }                   hpe_flags;
+
+    struct lshpack_allocator
+                       *hpe_alloc;
 };
 
 struct lshpack_arr
@@ -286,6 +317,8 @@ struct lshpack_dec
     unsigned           hpd_cur_max_capacity;   /* Adjusted at runtime */
     unsigned           hpd_cur_capacity;
     unsigned           hpd_state;
+    struct lshpack_allocator
+                      *hpd_alloc;
 };
 
 /* This function may update hash values and flags */

@@ -1693,6 +1693,105 @@ test_hdec_boundary (void)
 }
 
 
+struct alloc_counts
+{
+    unsigned ac_mallocs;
+    unsigned ac_frees;
+    unsigned ac_null_frees;
+    int      ac_fail;
+};
+
+
+static void *
+custom_malloc (void *ctx, size_t size)
+{
+    struct alloc_counts *counts = ctx;
+
+    ++counts->ac_mallocs;
+    return counts->ac_fail ? NULL : malloc(size);
+}
+
+
+static void
+custom_free (void *ctx, void *ptr)
+{
+    struct alloc_counts *counts = ctx;
+
+    if (ptr)
+        ++counts->ac_frees;
+    else
+        ++counts->ac_null_frees;
+    free(ptr);
+}
+
+
+static void
+decode_with_allocator (struct lshpack_dec *dec)
+{
+    const unsigned char encoded[] = { 0x40, 0x01, 'a', 0x01, 'b' };
+    const unsigned char *src = encoded;
+    struct lsxpack_header xhdr;
+    char out[0x100];
+    int rc;
+
+    lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
+    rc = lshpack_dec_decode(dec, &src, encoded + sizeof(encoded), &xhdr);
+    assert(rc == LSHPACK_OK);
+    assert(src == encoded + sizeof(encoded));
+}
+
+
+static void
+test_custom_allocators (void)
+{
+    struct alloc_counts counts = { 0 };
+    struct lshpack_allocator alloc = {
+        .ctx    = &counts,
+        .malloc = custom_malloc,
+        .free   = custom_free,
+    };
+    struct lshpack_enc henc;
+    struct lshpack_dec hdec;
+    int rc;
+
+    rc = lshpack_enc_init_ex(&henc, &alloc);
+    assert(rc == 0);
+    lshpack_enc_cleanup(&henc);
+    assert(counts.ac_mallocs > 0 && counts.ac_frees == counts.ac_mallocs);
+
+    memset(&counts, 0, sizeof(counts));
+    lshpack_dec_init_ex(&hdec, &alloc);
+    lshpack_dec_cleanup(&hdec);
+    assert(counts.ac_mallocs == 0 && counts.ac_null_frees == 1);
+
+    lshpack_dec_init_ex(&hdec, &alloc);
+    decode_with_allocator(&hdec);
+    lshpack_dec_cleanup(&hdec);
+    assert(counts.ac_mallocs > 0 && counts.ac_frees == counts.ac_mallocs);
+
+    counts.ac_fail = 1;
+    rc = lshpack_enc_init_ex(&henc, &alloc);
+    assert(rc == -1);
+
+    counts.ac_mallocs = counts.ac_frees = counts.ac_null_frees = 0;
+    rc = lshpack_enc_init_ex(&henc, NULL);
+    assert(rc == 0);
+    lshpack_enc_cleanup(&henc);
+    rc = lshpack_enc_init(&henc);
+    assert(rc == 0);
+    lshpack_enc_cleanup(&henc);
+
+    lshpack_dec_init_ex(&hdec, NULL);
+    decode_with_allocator(&hdec);
+    lshpack_dec_cleanup(&hdec);
+    lshpack_dec_init(&hdec);
+    decode_with_allocator(&hdec);
+    lshpack_dec_cleanup(&hdec);
+    assert(counts.ac_mallocs == 0 && counts.ac_frees == 0);
+    assert(counts.ac_null_frees == 0);
+}
+
+
 int
 main (int argc, char **argv)
 {
@@ -1732,6 +1831,7 @@ main (int argc, char **argv)
     test_hdec_zero_length_name();
     test_hdec_trailing_whitespace_name();
 
+    test_custom_allocators();
     return 0;
 }
 
