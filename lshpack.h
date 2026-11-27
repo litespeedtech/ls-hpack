@@ -132,6 +132,12 @@ enum lshpack_static_hdr_idx
 #define LSHPACK_OK                  (0)
 
 
+/**
+ * The allocator descriptor and its context must remain valid through encoder
+ * or decoder cleanup.  The descriptor is retained, not copied, and must not
+ * change during that lifetime.  Both callbacks must be non-NULL; free must
+ * accept a NULL pointer.
+ */
 struct lshpack_allocator
 {
     void *ctx;
