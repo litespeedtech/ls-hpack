@@ -146,7 +146,7 @@ struct lshpack_allocator
  *  0 is returned on success.
  */
 int
-lshpack_enc_init_ex (struct lshpack_enc *, const struct lshpack_allocator *);
+lshpack_enc_init_ex (struct lshpack_enc *, struct lshpack_allocator *);
 
 
 /**
@@ -156,7 +156,7 @@ lshpack_enc_init_ex (struct lshpack_enc *, const struct lshpack_allocator *);
  *  0 is returned on success.
  */
 int
-lshpack_dec_init_ex (struct lshpack_dec *, const struct lshpack_allocator *);
+lshpack_dec_init_ex (struct lshpack_dec *, struct lshpack_allocator *);
 
 
 

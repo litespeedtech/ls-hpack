@@ -204,7 +204,7 @@ static const uint32_t static_table_nameval_hash[HPACK_STATIC_TABLE_SIZE] =
 #define lshpack_arr_count(a) (+(a)->nelem)
 
 static int
-lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val, const struct lshpack_allocator* alc)
+lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val, struct lshpack_allocator* alc)
 {
     uintptr_t *new_els;
     unsigned n;
@@ -302,7 +302,7 @@ static struct lshpack_allocator __default_alloc = {
 };
 
 int
-lshpack_enc_init_ex (struct lshpack_enc * enc, const struct lshpack_allocator *alloc)
+lshpack_enc_init_ex (struct lshpack_enc * enc, struct lshpack_allocator *alloc)
 {
     struct lshpack_double_enc_head *buckets;
     unsigned nbits = 2;
@@ -1294,7 +1294,7 @@ struct decode_status
 
 
 int
-lshpack_dec_init_ex (struct lshpack_dec *dec, const struct lshpack_allocator* alloc)
+lshpack_dec_init_ex (struct lshpack_dec *dec, struct lshpack_allocator* alloc)
 {
     if (alloc == NULL){
         return LSHPACK_ERR_BAD_ALLOC;
