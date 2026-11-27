@@ -179,8 +179,8 @@ static const uint32_t static_table_nameval_hash[HPACK_STATIC_TABLE_SIZE] =
     memset((a), 0, sizeof(*(a)));                                       \
 } while (0)
 
-#define lshpack_arr_cleanup(alloc, a) do {                                     \
-    alloc->free(alloc->ctx, (a)->els);                                                     \
+#define lshpack_arr_cleanup(alloc, a) do {                              \
+    (alloc)->free((alloc)->ctx, (a)->els);                              \
     memset((a), 0, sizeof(*(a)));                                       \
 } while (0)
 
@@ -204,7 +204,8 @@ static const uint32_t static_table_nameval_hash[HPACK_STATIC_TABLE_SIZE] =
 #define lshpack_arr_count(a) (+(a)->nelem)
 
 static int
-lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val, struct lshpack_allocator* alc)
+lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val,
+                                                struct lshpack_allocator *alloc)
 {
     uintptr_t *new_els;
     unsigned n;
@@ -230,12 +231,12 @@ lshpack_arr_push (struct lshpack_arr *arr, uintptr_t val, struct lshpack_allocat
         n = arr->nalloc * 2;
     else
         n = 64;
-    new_els = alc->malloc(alc->ctx, n * sizeof(arr->els[0]));
+    new_els = alloc->malloc(alloc->ctx, n * sizeof(arr->els[0]));
     if (!new_els)
         return -1;
     if (arr->nelem)
         memcpy(new_els, arr->els + arr->off, sizeof(arr->els[0]) * arr->nelem);
-    alc->free(alc->ctx, arr->els);
+    alloc->free(alloc->ctx, arr->els);
     arr->off = 0;
     arr->els = new_els;
     arr->nalloc = n;
@@ -288,30 +289,37 @@ henc_hist_size (unsigned max_capacity)
 }
 
 
-static void* __default_malloc(void* ctx, size_t size){
+static void *
+default_malloc (void *UNUSED_ctx, size_t size)
+{
     return malloc(size);
 }
-static void __default_free(void* ctx, void* ptr){
+
+
+static void
+default_free (void *UNUSED_ctx, void *ptr)
+{
     free(ptr);
 }
 
-static struct lshpack_allocator __default_alloc = {
-    .ctx = NULL,
-    .malloc = __default_malloc,
-    .free = __default_free
+
+static struct lshpack_allocator default_allocator =
+{
+    .ctx    = NULL,
+    .malloc = default_malloc,
+    .free   = default_free,
 };
 
+
 int
-lshpack_enc_init_ex (struct lshpack_enc * enc, struct lshpack_allocator *alloc)
+lshpack_enc_init_ex (struct lshpack_enc *enc, struct lshpack_allocator *alloc)
 {
     struct lshpack_double_enc_head *buckets;
     unsigned nbits = 2;
     unsigned i;
 
-    if (alloc == NULL){
-        /* memory allocator can't be NULL */
-        return LSHPACK_ERR_BAD_ALLOC;
-    }
+    if (!alloc)
+        alloc = &default_allocator;
 
     buckets = alloc->malloc(alloc->ctx, sizeof(buckets[0]) * N_BUCKETS(nbits));
     if (!buckets)
@@ -340,11 +348,12 @@ lshpack_enc_init_ex (struct lshpack_enc * enc, struct lshpack_allocator *alloc)
     return 0;
 }
 
-int
-lshpack_enc_init(struct lshpack_enc* enc){
-    return lshpack_enc_init_ex(enc, &__default_alloc);
-}
 
+int
+lshpack_enc_init (struct lshpack_enc *enc)
+{
+    return lshpack_enc_init_ex(enc, NULL);
+}
 
 
 void
@@ -373,7 +382,8 @@ henc_use_hist (struct lshpack_enc *enc)
     if (!hist_size)
         return 0;
 
-    enc->hpe_hist_buf = enc->hpe_alloc->malloc(enc->hpe_alloc->ctx, sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
+    enc->hpe_hist_buf = enc->hpe_alloc->malloc(enc->hpe_alloc->ctx,
+                                sizeof(enc->hpe_hist_buf[0]) * (hist_size + 1));
     if (!enc->hpe_hist_buf)
         return -1;
 
@@ -964,9 +974,8 @@ henc_grow_tables (struct lshpack_enc *enc)
     int idx;
 
     old_nbits = enc->hpe_nbits;
-    new_buckets = enc->hpe_alloc->malloc(
-        enc->hpe_alloc->ctx, sizeof(enc->hpe_buckets[0]) * N_BUCKETS(old_nbits + 1)
-    );
+    new_buckets = enc->hpe_alloc->malloc(enc->hpe_alloc->ctx,
+                            sizeof(new_buckets[0]) * N_BUCKETS(old_nbits + 1));
     if (!new_buckets)
         return -1;
 
@@ -1080,7 +1089,8 @@ henc_resize_history (struct lshpack_enc *enc)
         return;
     }
 
-    hist_buf = enc->hpe_alloc->malloc(enc->hpe_alloc->ctx, sizeof(hist_buf[0]) * (hist_size + 1));
+    hist_buf = enc->hpe_alloc->malloc(enc->hpe_alloc->ctx,
+                                        sizeof(hist_buf[0]) * (hist_size + 1));
     if (!hist_buf)
         return;
 
@@ -1293,25 +1303,22 @@ struct decode_status
 };
 
 
-int
-lshpack_dec_init_ex (struct lshpack_dec *dec, struct lshpack_allocator* alloc)
+void
+lshpack_dec_init_ex (struct lshpack_dec *dec, struct lshpack_allocator *alloc)
 {
-    if (alloc == NULL){
-        return LSHPACK_ERR_BAD_ALLOC;
-    }
     memset(dec, 0, sizeof(*dec));
     dec->hpd_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     dec->hpd_cur_max_capacity = INITIAL_DYNAMIC_TABLE_SIZE;
     lshpack_arr_init(&dec->hpd_dyn_table);
-    dec->hpd_alloc = alloc;
-    return LSHPACK_OK;
+    dec->hpd_alloc = alloc ? alloc : &default_allocator;
 }
+
 
 void
-lshpack_dec_init (struct lshpack_dec * dec){
-    lshpack_dec_init_ex(dec, &__default_alloc);
+lshpack_dec_init (struct lshpack_dec *dec)
+{
+    lshpack_dec_init_ex(dec, NULL);
 }
-
 
 
 void
@@ -1322,7 +1329,7 @@ lshpack_dec_cleanup (struct lshpack_dec *dec)
     while (lshpack_arr_count(&dec->hpd_dyn_table) > 0)
     {
         val = lshpack_arr_pop(&dec->hpd_dyn_table);
-        dec->hpd_alloc->free(dec->hpd_alloc->ctx, (struct dec_table_entry *) val);
+        dec->hpd_alloc->free(dec->hpd_alloc->ctx, (void *) val);
     }
     lshpack_arr_cleanup(dec->hpd_alloc, &dec->hpd_dyn_table);
 }
@@ -1588,7 +1595,8 @@ lshpack_dec_push_entry (struct lshpack_dec *dec,
     if (!entry)
         return -1;
 
-    if (0 != lshpack_arr_push(&dec->hpd_dyn_table, (uintptr_t) entry, dec->hpd_alloc))
+    if (0 != lshpack_arr_push(&dec->hpd_dyn_table, (uintptr_t) entry,
+                                                                dec->hpd_alloc))
     {
         dec->hpd_alloc->free(dec->hpd_alloc->ctx, entry);
         return -1;
@@ -2123,11 +2131,6 @@ lshpack_dec_huff_decode (const unsigned char *src, int src_len,
     else
         return r;
 }
-
-
-
-
-
 #endif
 #if __GNUC__
 #pragma GCC diagnostic pop  /* -Wunknown-pragmas */
