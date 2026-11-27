@@ -1734,8 +1734,26 @@ static void test_custom_allocators(){
 
 
 
-    lshpack_dec_init_ex(&hdec, &custom_allocator);
-    lshpack_dec_cleanup(&hdec);
+    {
+         struct lsxpack_header xhdr;
+         const unsigned char encoded[] = { 0x40, 0x01, 'a', 0x01, 'b' };
+         const unsigned char *p = encoded;
+         char out[0x100];
+         int rc;
+         rc = lshpack_dec_init_ex(&hdec, &custom_allocator);
+         assert(rc == LSHPACK_OK);
+         lshpack_dec_cleanup(&hdec);
+         assert((__malloc_counter == 0) && (__free_counter == 1));
+         __free_counter = 0;
+         rc = lshpack_dec_init_ex(&hdec, &custom_allocator);
+         assert(rc == LSHPACK_OK);
+         lsxpack_header_prepare_decode(&xhdr, out, 0, sizeof(out));
+         rc = lshpack_dec_decode(&hdec, &p, encoded + sizeof(encoded), &xhdr);
+         assert(rc == LSHPACK_OK);
+         assert(p == encoded + sizeof(encoded));
+         lshpack_dec_cleanup(&hdec);
+     }
+
 
     assert((__malloc_counter > 0) && (__free_counter > 0));
     last_malloc = __malloc_counter;
